@@ -97,9 +97,13 @@ def index(
     config: Annotated[Path | None, typer.Option("--config", help="Explicit YAML configuration to index.")] = None,
     force: Annotated[bool, typer.Option(help="Reprocess all configured sources when indexing is implemented.")] = False,
 ) -> None:
-    """Index configured sources incrementally; currently a Milestone 1 stub."""
+    """Index configured sources incrementally."""
 
-    _runtime_stub("Forced index" if force else "Index", name, config)
+    from .ingestion.indexer import index_config
+
+    cfg = _resolve_config(name, config)
+    report = index_config(cfg, force=force)
+    typer.echo(f"Indexed '{cfg.knowledge.id}': new={report.new} unchanged={report.unchanged} changed={report.changed} deleted={report.deleted} chunks={report.chunks}")
 
 
 @app.command()
