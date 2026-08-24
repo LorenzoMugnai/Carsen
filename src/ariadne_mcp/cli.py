@@ -122,6 +122,40 @@ def search(
 
 
 @app.command()
+def evaluate(
+    args: Annotated[list[str], typer.Argument(help="NAME DATASET, or DATASET when --config is provided.")],
+    config: Annotated[Path | None, typer.Option("--config", help="Explicit YAML configuration to evaluate.")] = None,
+) -> None:
+    """Evaluate local retrieval against a YAML dataset."""
+
+    if config is None:
+        if len(args) != 2:
+            raise typer.BadParameter("provide NAME and DATASET, or --config PATH and DATASET")
+        name = args[0]
+        dataset_path = Path(args[1])
+    else:
+        if len(args) != 1:
+            raise typer.BadParameter("provide DATASET")
+        name = None
+        dataset_path = Path(args[0])
+    from .evaluation import average_metrics, evaluate_results, load_evaluation_dataset
+    from .mcp.runtime import InstanceRuntime
+
+    cfg = _resolve_config(name, config)
+    runtime = InstanceRuntime(cfg)
+    dataset = load_evaluation_dataset(dataset_path)
+    rows = []
+    for case in dataset.queries:
+        results = runtime.search_knowledge(case.query, limit=10)
+        rows.append(evaluate_results(case.expected, results, ks=(5, 10)))
+    metrics = average_metrics(rows)
+    typer.echo(f"query_count: {len(dataset.queries)}")
+    typer.echo(f"recall@5: {metrics['recall@5']:.4f}")
+    typer.echo(f"recall@10: {metrics['recall@10']:.4f}")
+    typer.echo(f"mrr: {metrics['mrr']:.4f}")
+
+
+@app.command()
 def status(
     name: Annotated[str | None, typer.Argument(help="Registered knowledge instance to inspect.")] = None,
     config: Annotated[Path | None, typer.Option("--config", help="Explicit YAML configuration to inspect.")] = None,

@@ -8,6 +8,8 @@ All notable changes to Ariadne are recorded here. The project follows British En
 - Added MCP client/runtime end-to-end coverage for isolated knowledge instances and local tool behaviour.
 - Added redacted search diagnostics for sparse fallback and hybrid candidate rankings.
 - Added YAML evaluation dataset loading with Recall@k and MRR metrics for retrieval checks.
+- Added `ariadne evaluate` and a CLI reference covering search, evaluation and operational smoke procedures.
+- Verified operational smoke paths for Docker-hosted Qdrant indexing/search and streamable HTTP MCP client calls.
 - Documented the Ariadne entry point, multi-instance model, isolation guarantees and LLM-independent retrieval approach.
 - Added initial architecture decision records for instance isolation, Qdrant collection layout, canonical chunks, hybrid retrieval, citations and LLM independence.
 - Captured current 0.1.0 progress for early adopters and maintainers.
@@ -23,3 +25,4 @@ All notable changes to Ariadne are recorded here. The project follows British En
 - Dense, sparse, exact and hybrid retrieval components with diagnostics and citation formatting foundations.
 - MCP runtime support for stdio and HTTP transports.
 - Docker Compose and systemd scaffolding for multiple isolated instances.
+- Operational smoke procedure for local Qdrant and HTTP MCP deployments.

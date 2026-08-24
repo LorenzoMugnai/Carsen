@@ -16,6 +16,13 @@ When adding behaviour, prefer focused tests that create temporary configurations
 
 Tests that load real embedding or reranking models must be marked with `@pytest.mark.model`. They are examples or opt-in checks only: CI does not require sentence-transformers downloads, external model services or a running Qdrant server.
 
+Operational smoke tests for a local deployment should be marked with `@pytest.mark.smoke`. A minimal smoke procedure is: index a tiny fixture config, run `ariadne search --config PATH "known token" --debug`, and confirm the diagnostics report either hybrid retrieval or sparse fallback without exposing full content.
+
+For release validation beyond CI, run two local smoke checks:
+
+1. Start a temporary Qdrant container, run `ariadne index --config PATH --embed`, verify the configured collection has points, then run `ariadne search --config PATH "known token" --debug`.
+2. Start `ariadne serve --config PATH --transport http`, connect with the Python MCP client to `/mcp`, and call `knowledge_info` plus one retrieval tool.
+
 ## Evaluation fixtures
 
 Retrieval evaluation datasets are YAML files with `queries`, each containing a `query` string and an `expected` list of chunk IDs. The built-in evaluator reports Recall@k and MRR over SearchResult-like outputs without loading models.

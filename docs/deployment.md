@@ -12,6 +12,8 @@ ariadne serve --config config.example.yaml
 
 Use `ariadne reembed --config config.example.yaml` after changing embedding settings, and `ariadne delete-index --config config.example.yaml` when intentionally removing an instance index.
 
+Before a release, run an operational smoke with a temporary Qdrant container and a local streamable HTTP MCP server. The smoke should prove that `index --embed` writes the configured collection and that an MCP client can call `knowledge_info` and a retrieval tool through `/mcp`.
+
 ## Remote HTTP
 
 Set `server.transport: http`, bind an appropriate `host` and use a unique `port` per instance. Place an authenticating reverse proxy in front if exposing beyond trusted local networks.

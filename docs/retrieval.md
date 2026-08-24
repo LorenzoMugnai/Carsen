@@ -36,3 +36,9 @@ ariadne search NAME "calibration constant" --debug
 ```
 
 Normal output shows a citation and short content preview. Debug output is deliberately redacted: it reports retrieval mode, fallback reason where present, candidate counts and chunk IDs/citations, not full confidential content.
+
+## Evaluation
+
+Use `ariadne evaluate NAME DATASET` or `ariadne evaluate --config path/to/config.yaml DATASET` to run YAML retrieval datasets through the local `InstanceRuntime`. Output includes `query_count`, `recall@5`, `recall@10` and `mrr`.
+
+Operational release smoke should include one `ariadne search --debug` call after `index --embed` against a real Qdrant service, confirming that the reported mode is `hybrid` and that citations are returned from metadata.

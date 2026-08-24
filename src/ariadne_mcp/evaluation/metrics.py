@@ -50,6 +50,15 @@ def evaluate_results(expected: list[str], results: list[Any], ks: tuple[int, ...
     return metrics
 
 
+def average_metrics(rows: list[dict[str, float]]) -> dict[str, float]:
+    """Average metric rows, returning zeroes for an empty evaluation."""
+
+    if not rows:
+        return {"recall@5": 0.0, "recall@10": 0.0, "mrr": 0.0}
+    keys = rows[0].keys()
+    return {key: sum(row[key] for row in rows) / len(rows) for key in keys}
+
+
 def _result_id(result: Any) -> str:
     if isinstance(result, dict):
         return str(result.get("chunk_id") or result.get("id") or result.get("source_id"))
