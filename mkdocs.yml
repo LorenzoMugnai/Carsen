@@ -1,0 +1,71 @@
+site_name: Carsen
+site_description: Local-first MCP knowledge engine for indexed code and document collections.
+repo_url: https://github.com/LorenzoMugnai/Carsen
+repo_name: LorenzoMugnai/Carsen
+
+theme:
+  name: material
+  logo: assets/logo.png
+  favicon: assets/logo.png
+  features:
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - content.code.copy
+    - content.tabs.link
+  palette:
+    - scheme: default
+      primary: deep purple
+      accent: teal
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - pymdownx.details
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+
+exclude_docs: |
+  superpowers/**
+
+nav:
+  - Home: index.md
+  - Getting started:
+      - Quickstart: quickstart.md
+      - Academic users: academic-users.md
+  - Core concepts:
+      - Overview: concepts.md
+      - MCP: concepts/mcp.md
+      - Qdrant: concepts/qdrant.md
+      - Embeddings: concepts/embeddings.md
+      - Chunks and citations: concepts/chunks-and-citations.md
+  - Using Carsen:
+      - Configuration: configuration.md
+      - Knowledge instances: knowledge-instances.md
+      - Indexing: indexing.md
+      - Retrieval: retrieval.md
+      - Citations: citations.md
+      - MCP server: mcp.md
+      - CLI reference: cli-reference.md
+  - Operations:
+      - Deployment: deployment.md
+      - Security: security.md
+      - Testing: testing.md
+      - Troubleshooting: troubleshooting.md
+  - Development:
+      - Architecture: architecture.md
+      - Development setup: development.md
+      - Extending Carsen: extending.md
+      - ADRs:
+          - Separate knowledge instances: adr/0001-separate-knowledge-instances.md
+          - Qdrant per-instance collections: adr/0002-qdrant-per-instance-collections.md
+          - Canonical chunk store: adr/0003-canonical-chunk-store.md
+          - Hybrid retrieval: adr/0004-hybrid-dense-sparse-retrieval.md
+          - Metadata-backed citations: adr/0005-metadata-backed-citations.md
+          - Generative LLM independence: adr/0006-generative-llm-independence.md

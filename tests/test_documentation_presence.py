@@ -39,3 +39,44 @@ def test_required_documentation_files_exist_and_are_non_empty() -> None:
 def test_architecture_and_retrieval_docs_include_mermaid_diagrams() -> None:
     assert "```mermaid" in (ROOT / "docs" / "architecture.md").read_text(encoding="utf-8")
     assert "```mermaid" in (ROOT / "docs" / "retrieval.md").read_text(encoding="utf-8")
+
+
+def test_mkdocs_site_configuration_exists() -> None:
+    config = ROOT / "mkdocs.yml"
+
+    assert config.exists()
+    text = config.read_text(encoding="utf-8")
+    assert "site_name: Carsen" in text
+    assert "theme:" in text
+    assert "material" in text
+    assert "quickstart.md" in text
+    assert "concepts/qdrant.md" in text
+
+
+def test_didactic_documentation_pages_exist() -> None:
+    required = [
+        ROOT / "docs/quickstart.md",
+        ROOT / "docs/academic-users.md",
+        ROOT / "docs/concepts.md",
+        ROOT / "docs/concepts/mcp.md",
+        ROOT / "docs/concepts/qdrant.md",
+        ROOT / "docs/concepts/embeddings.md",
+        ROOT / "docs/concepts/chunks-and-citations.md",
+    ]
+
+    for path in required:
+        assert path.exists(), f"Missing documentation page: {path}"
+
+
+def test_didactic_documentation_includes_diagrams() -> None:
+    diagram_pages = [
+        ROOT / "docs/quickstart.md",
+        ROOT / "docs/concepts/mcp.md",
+        ROOT / "docs/concepts/qdrant.md",
+        ROOT / "docs/concepts/embeddings.md",
+        ROOT / "docs/concepts/chunks-and-citations.md",
+    ]
+
+    for path in diagram_pages:
+        text = path.read_text(encoding="utf-8")
+        assert "```mermaid" in text, f"Missing Mermaid diagram in {path}"

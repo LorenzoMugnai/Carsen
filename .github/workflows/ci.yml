@@ -25,6 +25,12 @@ jobs:
       - name: Install Carsen
         run: uv sync --extra dev
 
+      - name: Install docs dependencies
+        run: uv pip install -e '.[docs]'
+
+      - name: Build documentation
+        run: uv run mkdocs build --strict
+
       - name: Lint
         run: uv run ruff check .
 

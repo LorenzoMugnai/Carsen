@@ -23,6 +23,19 @@
 
 Carsen is a local-first Model Context Protocol (MCP) knowledge engine for serving indexed code and document collections to any MCP-capable client. It keeps retrieval, citation metadata and operational state in Carsen; the generative LLM remains replaceable.
 
+## Documentation
+
+- [Quickstart for academic users](docs/quickstart.md)
+- [Core concepts](docs/concepts.md)
+- [Full documentation index](docs/index.md)
+
+To build the website locally:
+
+```bash
+uv pip install -e '.[docs]'
+mkdocs serve
+```
+
 ## Core ideas
 
 - **Multi-instance architecture:** each knowledge base is a named Carsen instance with its own configuration, sources, Qdrant collection, state directory and MCP endpoint.

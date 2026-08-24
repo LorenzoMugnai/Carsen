@@ -23,6 +23,10 @@ dev = [
   "ruff>=0.8",
   "types-PyYAML>=6.0",
 ]
+docs = [
+  "mkdocs>=1.6",
+  "mkdocs-material>=9.5",
+]
 
 [project.scripts]
 carsen = "carsen_mcp.cli:app"

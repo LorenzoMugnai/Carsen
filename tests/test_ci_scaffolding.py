@@ -17,3 +17,10 @@ def test_pyproject_declares_dev_quality_tools() -> None:
     assert "mypy>=1.10" in pyproject
     assert "[tool.ruff]" in pyproject
     assert "[tool.mypy]" in pyproject
+
+
+def test_ci_builds_documentation_site() -> None:
+    workflow = Path(".github/workflows/ci.yml").read_text()
+
+    assert ".[docs]" in workflow
+    assert "uv run mkdocs build --strict" in workflow

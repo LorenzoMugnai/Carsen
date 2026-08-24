@@ -15,4 +15,36 @@ The registry stores discoverable configurations for local use. Explicit `--confi
 
 Each instance should have a unique `knowledge.id`, port, data directory and, when Qdrant is used, collection. Docker examples run `carsen-alpha` and `carsen-beta` as separate services with separate mounted data volumes and HTTP ports.
 
+```mermaid
+flowchart TB
+    subgraph ProjectA[Project A knowledge instance]
+        A1[alpha.yaml]
+        A2[Project A sources]
+        A3[~/.local/share/carsen/alpha]
+        A4[Qdrant collection: carsen_alpha]
+        A5[HTTP port 8765]
+        A1 --> A2
+        A1 --> A3
+        A1 --> A4
+        A1 --> A5
+    end
+
+    subgraph ProjectB[Project B knowledge instance]
+        B1[beta.yaml]
+        B2[Project B sources]
+        B3[~/.local/share/carsen/beta]
+        B4[Qdrant collection: carsen_beta]
+        B5[HTTP port 8766]
+        B1 --> B2
+        B1 --> B3
+        B1 --> B4
+        B1 --> B5
+    end
+
+    ClientA[MCP client for Project A] --> A5
+    ClientB[MCP client for Project B] --> B5
+```
+
+This separation matters in academic work because different projects, collaborations or students may have different trust boundaries. A private proposal draft should not be mixed into the same retrieval space as a public codebase.
+
 The runtime filters loaded chunks by `knowledge_id`, so an instance only serves chunks belonging to its configured ID.

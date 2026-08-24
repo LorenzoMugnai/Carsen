@@ -1,6 +1,12 @@
 # Carsen documentation
 
-Carsen is a Python 3.12 MCP knowledge server for indexing local code and document sources into isolated knowledge instances. This documentation describes the implemented repository state.
+Carsen is a local-first MCP knowledge engine for indexed code and document collections. These docs are written for researchers, developers and academic teams who need reliable retrieval with traceable citations.
+
+If you are new to vector search or MCP, start here:
+
+- [Quickstart for academic users](quickstart.md)
+- [Core concepts](concepts.md)
+- [Carsen for academic groups](academic-users.md)
 
 ## Contents
 

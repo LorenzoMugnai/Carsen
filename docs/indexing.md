@@ -13,6 +13,23 @@ The indexer discovers files under configured `sources.code` and `sources.documen
 
 `--embed` additionally embeds the canonical chunks and upserts them into the instance-specific Qdrant collection. Without `--embed`, Carsen still updates the canonical chunk store and sparse/MCP fallback retrieval can use those chunks.
 
+```mermaid
+flowchart LR
+    A[Configured source roots] --> B[Discover files]
+    B --> C[Classify new, changed, unchanged or deleted]
+    C --> D[Parse required files]
+    D --> E[Create canonical chunks]
+    E --> F[Store chunks and metadata locally]
+    E --> G{--embed?}
+    G -- No --> H[Local sparse and MCP fallback retrieval]
+    G -- Yes --> I[Create embeddings]
+    I --> J[Upsert vectors into instance Qdrant collection]
+    F --> K[Citations and source tracing]
+    J --> L[Dense semantic retrieval]
+```
+
+This flow is similar to building a catalogue for a research archive. Carsen first records what source material exists, then stores small cited records, and only then adds semantic vectors when dense search is requested.
+
 ## Discovery
 
 Defaults ignore common generated or dependency directories such as `.git`, `.venv`, `node_modules`, `__pycache__`, `build` and `dist`. Binary extension ignores include `.pyc`, `.so`, `.dll` and `.dylib`. Symlink following is disabled by default.
