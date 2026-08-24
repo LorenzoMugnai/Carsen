@@ -12,6 +12,7 @@ def read_text(path: Path) -> str:
 
 
 def parse_file(path: Path, knowledge_id: str, source_root: Path | None = None) -> list[Chunk]:
+    from .document import DOCUMENT_EXTENSIONS, parse_document
     from .markdown import parse_markdown
     from .python import parse_python
     from .text import parse_text
@@ -20,6 +21,8 @@ def parse_file(path: Path, knowledge_id: str, source_root: Path | None = None) -
         return parse_python(path, knowledge_id, source_root)
     if path.suffix.lower() in {".md", ".markdown"}:
         return parse_markdown(path, knowledge_id, source_root)
+    if path.suffix.lower() in DOCUMENT_EXTENSIONS:
+        return parse_document(path, knowledge_id, source_root)
     return parse_text(path, knowledge_id, source_root)
 
 
