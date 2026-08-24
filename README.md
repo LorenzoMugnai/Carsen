@@ -33,7 +33,7 @@ To build the website locally:
 
 ```bash
 uv pip install -e '.[docs]'
-mkdocs serve
+uv run mkdocs serve
 ```
 
 ## Core ideas
