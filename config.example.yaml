@@ -1,0 +1,40 @@
+knowledge:
+  id: example
+  name: Example Knowledge Base
+  description: Example Ariadne knowledge instance.
+
+server:
+  transport: http
+  host: 127.0.0.1
+  port: 8765
+
+storage:
+  qdrant_url: http://127.0.0.1:6333
+  collection: kb_example
+  data_directory: "${HOME}/.local/share/ariadne/example"
+
+models:
+  embedding:
+    provider: sentence_transformers
+    model: Qwen/Qwen3-Embedding-0.6B
+    dimensions: 1024
+    device: auto
+  reranker:
+    provider: sentence_transformers
+    model: Qwen/Qwen3-Reranker-0.6B
+    device: auto
+
+retrieval:
+  dense_candidates: 40
+  sparse_candidates: 40
+  fused_candidates: 30
+  final_results: 8
+  fusion: rrf
+  max_results_per_source: 3
+
+sources:
+  code: []
+  documents: []
+
+policy:
+  allow_external_llm: false

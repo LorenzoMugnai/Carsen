@@ -1,0 +1,27 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "ariadne-mcp"
+version = "0.1.0"
+description = "Ariadne MCP code skeleton"
+requires-python = ">=3.12"
+dependencies = [
+  "pydantic>=2.7",
+  "PyYAML>=6.0",
+  "typer>=0.12",
+]
+
+[project.optional-dependencies]
+test = ["pytest>=8.0"]
+
+[project.scripts]
+ariadne = "ariadne_mcp.cli:app"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/ariadne_mcp"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
