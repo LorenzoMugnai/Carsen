@@ -34,6 +34,14 @@ uv run ariadne validate my-project
 uv run ariadne index my-project
 ```
 
+Use `--embed` to also create or update the configured Qdrant collection during indexing:
+
+```bash
+uv run ariadne index my-project --embed
+uv run ariadne reembed my-project
+uv run ariadne delete-index my-project
+```
+
 Serve over stdio for local MCP clients:
 
 ```bash

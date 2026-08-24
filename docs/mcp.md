@@ -11,6 +11,8 @@ ariadne serve --config path/to/config.yaml --transport http
 
 Supported transports are `stdio` and `http`. HTTP uses streamable HTTP at `/mcp` with configured `host` and `port`.
 
+At runtime Ariadne first attempts hybrid retrieval over the configured dense Qdrant collection plus the local sparse index. If the dense store or embedding provider is unavailable, the MCP tools fall back to sparse retrieval from the instance-local chunk store rather than crossing into another instance.
+
 ## Tools
 
 - `knowledge_info()`: returns instance ID, name, description, chunk count and source count.

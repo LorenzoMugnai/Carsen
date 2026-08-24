@@ -6,9 +6,11 @@ Install the package in a Python 3.12 environment, create or provide a YAML confi
 
 ```bash
 ariadne validate --config config.example.yaml
-ariadne index --config config.example.yaml
+ariadne index --config config.example.yaml --embed
 ariadne serve --config config.example.yaml
 ```
+
+Use `ariadne reembed --config config.example.yaml` after changing embedding settings, and `ariadne delete-index --config config.example.yaml` when intentionally removing an instance index.
 
 ## Remote HTTP
 
