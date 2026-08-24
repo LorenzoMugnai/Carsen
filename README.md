@@ -1,4 +1,25 @@
-# Carsen
+<div align="center">
+
+<img src="docs/assets/logo.png" alt="Carsen logo" width="144" />
+
+<h1>Carsen</h1>
+
+<p><em>Local-first MCP knowledge engine for indexed code and document collections.</em></p>
+
+<p>
+  <a href="https://github.com/LorenzoMugnai/Carsen/actions/workflows/ci.yml">
+    <img alt="GitHub Actions CI" src="https://img.shields.io/github/actions/workflow/status/LorenzoMugnai/Carsen/ci.yml?branch=main&style=flat-square&label=CI">
+  </a>
+  <img alt="Python >=3.12" src="https://img.shields.io/badge/Python-%3E%3D3.12-3776AB?style=flat-square&logo=python&logoColor=white">
+  <img alt="carsen-mcp v0.1.0" src="https://img.shields.io/badge/carsen--mcp-v0.1.0-7c3aed?style=flat-square">
+  <img alt="MCP enabled" src="https://img.shields.io/badge/MCP-enabled-111827?style=flat-square">
+  <img alt="Ruff" src="https://img.shields.io/badge/Ruff-linting-2C6BED?style=flat-square&logo=ruff&logoColor=white">
+  <img alt="mypy" src="https://img.shields.io/badge/mypy-checked-2A6DB2?style=flat-square&logo=mypy&logoColor=white">
+  <img alt="local-first" src="https://img.shields.io/badge/local--first-yes-0F766E?style=flat-square">
+  <img alt="Qdrant" src="https://img.shields.io/badge/Qdrant-backed-FF6F00?style=flat-square&logo=qdrant&logoColor=white">
+</p>
+
+</div>
 
 Carsen is a local-first Model Context Protocol (MCP) knowledge engine for serving indexed code and document collections to any MCP-capable client. It keeps retrieval, citation metadata and operational state in Carsen; the generative LLM remains replaceable.
 

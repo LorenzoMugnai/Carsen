@@ -1,15 +1,69 @@
+# Python bytecode and caches
 __pycache__/
 *.py[cod]
+*$py.class
 .pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.pyre/
+.cache/
+
+# Virtual environments
 .venv/
-.serena/
+venv/
+env/
+ENV/
+
+# Packaging and build outputs
 dist/
 build/
 *.egg-info/
+.eggs/
+*.egg
+wheelhouse/
+
+# Test and coverage artifacts
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+.tox/
+.nox/
+
+# Carsen local runtime state
 data/
-.cache/
 .qdrant/
-.env
 configs/local/
 *.sqlite
+*.sqlite3
 *.db
+*.db-journal
+*.pid
+*.sock
+
+# Secrets and local environment files
+.env
+.env.*
+!.env.example
+!.env.sample
+
+# Logs and temporary files
+*.log
+logs/
+tmp/
+temp/
+*.tmp
+*.bak
+*.swp
+*.swo
+
+# Documentation/site build outputs
+site/
+docs/_build/
+
+# Editor and OS noise
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+.serena/
