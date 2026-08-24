@@ -2,7 +2,14 @@ from __future__ import annotations
 
 from typing import Any
 
-from ariadne_mcp.retrieval import HybridRetrievalConfig, HybridRetriever, SearchResult, SparseRetriever, lookup_symbol, rrf_fuse
+from ariadne_mcp.retrieval import (
+    HybridRetrievalConfig,
+    HybridRetriever,
+    SearchResult,
+    SparseRetriever,
+    lookup_symbol,
+    rrf_fuse,
+)
 
 
 def result(chunk_id: str, text: str, score: float = 1.0, **metadata: Any) -> SearchResult:
@@ -40,7 +47,9 @@ def test_sparse_retrieval_exact_identifier() -> None:
 
 
 def test_rrf_ordering_rewards_cross_retriever_agreement() -> None:
-    a = result("a", "a"); b = result("b", "b"); c = result("c", "c")
+    a = result("a", "a")
+    b = result("b", "b")
+    c = result("c", "c")
     fused = rrf_fuse([[a, b], [b, c]], limit=3, k=10)
     assert [hit.chunk_id for hit in fused] == ["b", "a", "c"]
 

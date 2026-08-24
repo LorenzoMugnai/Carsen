@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
-from html.parser import HTMLParser
 import importlib
+from html.parser import HTMLParser
 from pathlib import Path
 from typing import Any
 
 from ariadne_mcp.chunks.model import Chunk
+
 from .base import rel_path
 from .markdown import parse_markdown_text
 
@@ -26,11 +27,13 @@ def parse_document(path: Path, knowledge_id: str, source_root: Path | None = Non
     source = rel_path(path, source_root)
     try:
         return _parse_with_docling(path, knowledge_id, source)
-    except ParserUnavailableError:
+    except ParserUnavailableError as exc:
         if suffix in {".html", ".htm"}:
             return _parse_html_fallback(path, knowledge_id, source)
         if suffix in BINARY_EXTENSIONS:
-            raise ParserUnavailableError(f"Docling is required to parse {suffix} documents; install the optional document parsing dependency")
+            raise ParserUnavailableError(
+                f"Docling is required to parse {suffix} documents; install the optional document parsing dependency"
+            ) from exc
         raise
 
 

@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any, Protocol
 
 from ariadne_mcp.embeddings import EmbeddingProvider
+
 from .models import SearchResult
 
 

@@ -6,6 +6,7 @@ import ast
 from pathlib import Path
 
 from ariadne_mcp.chunks.model import Chunk
+
 from .base import read_text, rel_path
 
 

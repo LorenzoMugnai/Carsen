@@ -8,6 +8,7 @@ from collections import Counter
 from dataclasses import dataclass
 
 from ariadne_mcp.chunks.model import Chunk
+
 from .filters import matches_filters
 from .models import SearchResult
 
@@ -50,7 +51,10 @@ class SparseRetriever:
         return sorted(scored, key=lambda result: result.score, reverse=True)[:limit]
 
     def _score(self, doc: SparseDocument, query_tokens: list[str], raw_query: str) -> float:
-        total = 0.0; k1 = 1.5; b = 0.75; n_docs = max(1, len(self.documents))
+        total = 0.0
+        k1 = 1.5
+        b = 0.75
+        n_docs = max(1, len(self.documents))
         for token in query_tokens:
             freq = doc.tokens[token]
             if not freq:

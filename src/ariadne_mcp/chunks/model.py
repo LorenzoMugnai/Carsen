@@ -49,5 +49,5 @@ class Chunk:
         return asdict(self)
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "Chunk":
+    def from_dict(cls, data: dict[str, Any]) -> Chunk:
         return cls(**data)

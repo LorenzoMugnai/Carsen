@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 
 from ariadne_mcp.chunks.model import Chunk
+
 from .models import SearchResult
 
 

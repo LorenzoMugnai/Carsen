@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
+
 from .filters import diversify_by_source
 from .models import SearchResult
 

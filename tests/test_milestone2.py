@@ -22,8 +22,10 @@ def test_python_parser_fixture_symbols(tmp_path: Path) -> None:
 
 
 def test_markdown_and_text_parser_basics(tmp_path: Path) -> None:
-    md = tmp_path / "guide.md"; md.write_text("# One\nBody\n## Two\nMore\n", encoding="utf-8")
-    txt = tmp_path / "notes.txt"; txt.write_text("plain\ntext\n", encoding="utf-8")
+    md = tmp_path / "guide.md"
+    md.write_text("# One\nBody\n## Two\nMore\n", encoding="utf-8")
+    txt = tmp_path / "notes.txt"
+    txt.write_text("plain\ntext\n", encoding="utf-8")
     md_chunks = parse_markdown(md, "kb", tmp_path)
     assert [c.metadata["heading"] for c in md_chunks] == ["One", "Two"]
     assert [c.order for c in md_chunks] == [0, 1]
@@ -31,7 +33,8 @@ def test_markdown_and_text_parser_basics(tmp_path: Path) -> None:
 
 
 def test_discovery_ignores_and_hashing(tmp_path: Path) -> None:
-    (tmp_path / ".git").mkdir(); (tmp_path / ".git" / "hidden.py").write_text("x", encoding="utf-8")
+    (tmp_path / ".git").mkdir()
+    (tmp_path / ".git" / "hidden.py").write_text("x", encoding="utf-8")
     (tmp_path / "keep.py").write_text("x", encoding="utf-8")
     (tmp_path / "skip.pyc").write_text("x", encoding="utf-8")
     cfg = AriadneConfig(knowledge=KnowledgeConfig(id="kb")).indexing
@@ -64,7 +67,9 @@ def test_incremental_state_workflow(tmp_path: Path) -> None:
 
 
 def test_indexer_persists_chunks_and_reports(tmp_path: Path) -> None:
-    src = tmp_path / "src"; src.mkdir(); (src / "a.py").write_text("def helper():\n    return 1\n", encoding="utf-8")
+    src = tmp_path / "src"
+    src.mkdir()
+    (src / "a.py").write_text("def helper():\n    return 1\n", encoding="utf-8")
     cfg = AriadneConfig(knowledge=KnowledgeConfig(id="kb"), storage=StorageConfig(data_directory=tmp_path / "data"), sources=SourcesConfig(code=[SourcePathConfig(path=src)]))
     report = index_config(cfg)
     assert report.new == 1 and report.chunks >= 2

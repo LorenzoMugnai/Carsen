@@ -138,7 +138,7 @@ class AriadneConfig(BaseModel):
     policy: PolicyConfig = Field(default_factory=PolicyConfig)
 
     @model_validator(mode="after")
-    def derive_instance_storage(self) -> "AriadneConfig":
+    def derive_instance_storage(self) -> AriadneConfig:
         """Derive collection and data directory from the knowledge ID when absent."""
 
         if self.storage.collection is None:

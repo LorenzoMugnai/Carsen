@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, cast
 from uuid import NAMESPACE_URL, uuid5
 
 from qdrant_client import QdrantClient
@@ -47,7 +47,7 @@ class QdrantVectorStore:
 
     def delete_by_source_path(self, source_path: str, knowledge_id: str | None = None) -> None:
         self.ensure_collection()
-        conditions = [FieldCondition(key="source_path", match=MatchValue(value=source_path))]
+        conditions: list[Any] = [FieldCondition(key="source_path", match=MatchValue(value=source_path))]
         if knowledge_id is not None:
             conditions.append(FieldCondition(key="knowledge_id", match=MatchValue(value=knowledge_id)))
         self.client.delete(collection_name=self.collection_name, points_selector=Filter(must=conditions))
@@ -61,7 +61,7 @@ class QdrantVectorStore:
             query_filter=_filter(filters),
             with_payload=True,
         )
-        points = getattr(response, "points", response)
+        points = cast(Any, getattr(response, "points", response))
         results: list[SearchResult] = []
         for point in points:
             payload = dict(point.payload or {})

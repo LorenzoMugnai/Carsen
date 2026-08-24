@@ -5,7 +5,7 @@ from __future__ import annotations
 import hashlib
 import importlib
 import math
-from typing import Protocol
+from typing import Any, Protocol
 
 
 class EmbeddingProvider(Protocol):
@@ -50,9 +50,9 @@ class SentenceTransformersEmbeddingProvider:
         self.model_name = model_name
         self.dimensions = dimensions or 0
         self.device = device
-        self._model = None
+        self._model: Any | None = None
 
-    def _load_model(self):
+    def _load_model(self) -> Any:
         if self._model is None:
             try:
                 module = importlib.import_module("sentence_transformers")
@@ -60,9 +60,12 @@ class SentenceTransformersEmbeddingProvider:
                 raise RuntimeError("sentence-transformers is not installed; install the optional embedding dependency") from exc
             SentenceTransformer = module.SentenceTransformer
             kwargs = {"device": self.device} if self.device else {}
-            self._model = SentenceTransformer(self.model_name, **kwargs)
+            model = SentenceTransformer(self.model_name, **kwargs)
+            self._model = model
             if not self.dimensions:
-                self.dimensions = int(self._model.get_sentence_embedding_dimension() or 0)
+                self.dimensions = int(model.get_sentence_embedding_dimension() or 0)
+        if self._model is None:
+            raise RuntimeError("sentence-transformers model could not be loaded")
         return self._model
 
     def embed_texts(self, texts: list[str]) -> list[list[float]]:

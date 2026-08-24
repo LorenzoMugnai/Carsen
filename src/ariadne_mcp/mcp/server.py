@@ -6,6 +6,7 @@ import importlib
 from typing import Any
 
 from ariadne_mcp.config import AriadneConfig
+
 from .runtime import InstanceRuntime
 
 
