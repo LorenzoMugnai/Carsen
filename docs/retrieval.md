@@ -24,3 +24,15 @@ Sparse retrieval tokenises source-like text, preserving dotted identifiers. It s
 ## Filters
 
 Filters are simple metadata equality checks. MCP `search_code` applies `source_type: code` and falls back to `document_type: code` if needed. `search_documents` applies `source_type: documents`.
+
+## CLI search and diagnostics
+
+Local chunk stores can be searched without starting an MCP server:
+
+```bash
+ariadne search NAME "calibration constant"
+ariadne search --config path/to/config.yaml "calibration constant" --corpus code --limit 5
+ariadne search NAME "calibration constant" --debug
+```
+
+Normal output shows a citation and short content preview. Debug output is deliberately redacted: it reports retrieval mode, fallback reason where present, candidate counts and chunk IDs/citations, not full confidential content.

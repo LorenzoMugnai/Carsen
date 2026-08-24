@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Any
 
 import typer
 
@@ -11,6 +11,11 @@ from .config import AriadneConfig, load_config
 from .registry import create_config, discover_configs, instance_metadata, list_configs
 
 app = typer.Typer(help="Ariadne Knowledge Engine: manage isolated knowledge MCP instances.")
+
+
+def _preview(text: str, length: int = 120) -> str:
+    collapsed = " ".join(text.split())
+    return collapsed if len(collapsed) <= length else f"{collapsed[: length - 1]}…"
 
 
 def _resolve_config(name: str | None, config: Path | None) -> AriadneConfig:
@@ -64,6 +69,56 @@ def validate(
     """Validate a registered or explicit YAML knowledge configuration."""
     cfg = _resolve_config(name, config)
     typer.echo(f"Configuration '{cfg.knowledge.id}' is valid.")
+
+
+@app.command()
+def search(
+    args: Annotated[list[str], typer.Argument(help="NAME QUERY, or QUERY when --config is provided.")],
+    config: Annotated[Path | None, typer.Option("--config", help="Explicit YAML configuration to search.")] = None,
+    corpus: Annotated[str, typer.Option(help="Corpus to search: all, code or documents.")] = "all",
+    limit: Annotated[int, typer.Option(help="Maximum results to return.")] = 8,
+    debug: Annotated[bool, typer.Option(help="Show redacted retrieval diagnostics.")] = False,
+) -> None:
+    """Search a local Ariadne chunk store."""
+
+    if corpus not in {"all", "code", "documents"}:
+        raise typer.BadParameter("corpus must be 'all', 'code' or 'documents'")
+    if config is None:
+        if len(args) < 2:
+            raise typer.BadParameter("provide NAME and QUERY, or --config PATH and QUERY")
+        name = args[0]
+        query = " ".join(args[1:])
+    else:
+        if not args:
+            raise typer.BadParameter("provide QUERY")
+        name = None
+        query = " ".join(args)
+    from .mcp.runtime import InstanceRuntime
+
+    cfg = _resolve_config(name, config)
+    runtime = InstanceRuntime(cfg)
+    payload: dict[str, Any] | None = None
+    if debug:
+        payload = runtime.search_debug(query, limit=limit)
+        results = payload["results"]
+    elif corpus == "code":
+        results = runtime.search_code(query, limit=limit)
+    elif corpus == "documents":
+        results = runtime.search_documents(query, limit=limit)
+    else:
+        results = runtime.search_knowledge(query, limit=limit)
+    for index, result in enumerate(results, start=1):
+        typer.echo(f"{index}. {result['citation']} score={result['score']:.4f}")
+        typer.echo(f"   {_preview(result['text'])}")
+    if debug:
+        diagnostics = payload["diagnostics"] if payload is not None else {}
+        typer.echo("Diagnostics:")
+        typer.echo(f"  mode: {diagnostics.get('mode')}")
+        if diagnostics.get("fallback_reason"):
+            typer.echo(f"  fallback: {diagnostics['fallback_reason']}")
+        typer.echo(f"  sparse_candidates: {diagnostics.get('sparse_candidates', 0)}")
+        typer.echo(f"  dense_candidates: {diagnostics.get('dense_candidates', 0)}")
+        typer.echo(f"  ranking: {[item['chunk_id'] for item in diagnostics.get('fused_ranking') or diagnostics.get('ranking', [])]}")
 
 
 @app.command()

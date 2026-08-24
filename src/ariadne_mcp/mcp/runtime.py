@@ -47,6 +47,12 @@ class InstanceRuntime:
     def search_knowledge(self, query: str, limit: int = 8, filters: dict[str, Any] | None = None) -> list[dict[str, Any]]:
         return [self._serialise_result(result) for result in self._search(query, limit, filters)]
 
+    def search_debug(self, query: str, limit: int = 8, filters: dict[str, Any] | None = None) -> dict[str, Any]:
+        """Return search results plus redacted retrieval diagnostics."""
+
+        results, diagnostics = self._search_with_debug(query, limit, filters)
+        return {"results": [self._serialise_result(result) for result in results], "diagnostics": diagnostics}
+
     def search_code(self, query: str, limit: int = 8, filters: dict[str, Any] | None = None) -> list[dict[str, Any]]:
         merged = {**(filters or {}), "source_type": "code"}
         results = self._sparse(None).search(query, limit=limit, filters=cast(dict[str, object], merged))
@@ -92,6 +98,9 @@ class InstanceRuntime:
         return SparseRetriever(chunks=chunks)
 
     def _search(self, query: str, limit: int, filters: dict[str, Any] | None) -> list[SearchResult]:
+        return self._search_with_debug(query, limit, filters)[0]
+
+    def _search_with_debug(self, query: str, limit: int, filters: dict[str, Any] | None) -> tuple[list[SearchResult], dict[str, Any]]:
         sparse = self._sparse(None)
         try:
             provider = self.embedding_provider or embedding_provider_from_config(self.config.models.embedding)
@@ -103,9 +112,17 @@ class InstanceRuntime:
                 final_results=limit,
                 max_results_per_source=self.config.retrieval.max_results_per_source,
             )
-            return HybridRetriever(dense, sparse, config=config).search(query, filters=filters)
-        except Exception:
-            return sparse.search(query, limit=limit, filters=filters)
+            diagnostics = HybridRetriever(dense, sparse, config=config).search_with_diagnostics(query, filters=filters)
+            return diagnostics.final_results, {
+                "mode": "hybrid",
+                "dense_candidates": len(diagnostics.dense_candidates),
+                "sparse_candidates": len(diagnostics.sparse_candidates),
+                "fused_ranking": [self._redacted_result(result) for result in diagnostics.fused_ranking],
+                "reranker_error": diagnostics.reranker_error,
+            }
+        except Exception as exc:
+            results = sparse.search(query, limit=limit, filters=filters)
+            return results, {"mode": "sparse_fallback", "fallback_reason": exc.__class__.__name__, "sparse_candidates": len(results), "ranking": [self._redacted_result(result) for result in results]}
 
     def _find_chunk(self, source_id: str | None = None, chunk_id: str | None = None) -> Chunk | None:
         for chunk in self.chunks:
@@ -122,6 +139,9 @@ class InstanceRuntime:
 
     def _serialise_result(self, result: SearchResult) -> dict[str, Any]:
         return {"chunk_id": result.chunk_id, "score": result.score, "text": result.text, "metadata": result.metadata, "citation": self.formatter.format(result)}
+
+    def _redacted_result(self, result: SearchResult) -> dict[str, Any]:
+        return {"chunk_id": result.chunk_id, "score": result.score, "citation": self.formatter.format(result), "source_path": result.metadata.get("source_path"), "symbol": result.metadata.get("symbol")}
 
     def _serialise_chunk(self, chunk: Chunk, include_text: bool) -> dict[str, Any]:
         data = asdict(chunk)

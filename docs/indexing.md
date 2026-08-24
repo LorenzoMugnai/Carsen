@@ -29,6 +29,8 @@ Parsed content becomes deterministic `Chunk` records containing:
 
 This separates canonical identity from content changes, enabling re-embedding or invalidation without changing the source identifier when boundaries remain stable.
 
+The local chunk store is also the fallback retrieval source for `ariadne search` and the MCP runtime when dense vector services or models are unavailable.
+
 ## Re-embedding and deletion
 
 Changing the embedding model does not require reparsing source files if canonical chunks are still valid:
