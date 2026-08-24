@@ -30,15 +30,15 @@ Filters are simple metadata equality checks. MCP `search_code` applies `source_t
 Local chunk stores can be searched without starting an MCP server:
 
 ```bash
-ariadne search NAME "calibration constant"
-ariadne search --config path/to/config.yaml "calibration constant" --corpus code --limit 5
-ariadne search NAME "calibration constant" --debug
+carsen search NAME "calibration constant"
+carsen search --config path/to/config.yaml "calibration constant" --corpus code --limit 5
+carsen search NAME "calibration constant" --debug
 ```
 
 Normal output shows a citation and short content preview. Debug output is deliberately redacted: it reports retrieval mode, fallback reason where present, candidate counts and chunk IDs/citations, not full confidential content.
 
 ## Evaluation
 
-Use `ariadne evaluate NAME DATASET` or `ariadne evaluate --config path/to/config.yaml DATASET` to run YAML retrieval datasets through the local `InstanceRuntime`. Output includes `query_count`, `recall@5`, `recall@10` and `mrr`.
+Use `carsen evaluate NAME DATASET` or `carsen evaluate --config path/to/config.yaml DATASET` to run YAML retrieval datasets through the local `InstanceRuntime`. Output includes `query_count`, `recall@5`, `recall@10` and `mrr`.
 
-Operational release smoke should include one `ariadne search --debug` call after `index --embed` against a real Qdrant service, confirming that the reported mode is `hybrid` and that citations are returned from metadata.
+Operational release smoke should include one `carsen search --debug` call after `index --embed` against a real Qdrant service, confirming that the reported mode is `hybrid` and that citations are returned from metadata.

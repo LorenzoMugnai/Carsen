@@ -1,0 +1,21 @@
+[Unit]
+Description=Carsen Knowledge MCP instance %i
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=carsen
+Group=carsen
+WorkingDirectory=/opt/carsen
+Environment=CARSEN_CONFIG_DIR=/etc/carsen
+ExecStart=/opt/carsen/.venv/bin/carsen serve %i --transport http
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ReadWritePaths=/var/lib/carsen /home/carsen/.local/share/carsen
+
+[Install]
+WantedBy=multi-user.target

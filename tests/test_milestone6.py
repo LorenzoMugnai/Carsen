@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from ariadne_mcp.chunks.model import Chunk
-from ariadne_mcp.citations import CitationFormatter
-from ariadne_mcp.retrieval import SearchResult, SourceExpander
+from carsen_mcp.chunks.model import Chunk
+from carsen_mcp.citations import CitationFormatter
+from carsen_mcp.retrieval import SearchResult, SourceExpander
 
 
 def result(chunk_id: str, text: str, **metadata: object) -> SearchResult:

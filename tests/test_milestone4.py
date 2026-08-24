@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from ariadne_mcp.retrieval import (
+from carsen_mcp.retrieval import (
     HybridRetrievalConfig,
     HybridRetriever,
     SearchResult,
@@ -27,7 +27,7 @@ class FixedRetriever:
         self.last_filters = filters
         rows = self.results
         if filters:
-            from ariadne_mcp.retrieval.filters import filter_results
+            from carsen_mcp.retrieval.filters import filter_results
             rows = filter_results(rows, filters)
         return rows[:limit]
 

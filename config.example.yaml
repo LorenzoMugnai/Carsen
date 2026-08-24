@@ -1,7 +1,7 @@
 knowledge:
   id: example
   name: Example Knowledge Base
-  description: Example Ariadne knowledge instance.
+  description: Example Carsen knowledge instance.
 
 server:
   transport: http
@@ -11,7 +11,7 @@ server:
 storage:
   qdrant_url: http://127.0.0.1:6333
   collection: kb_example
-  data_directory: "${HOME}/.local/share/ariadne/example"
+  data_directory: "${HOME}/.local/share/carsen/example"
 
 models:
   embedding:

@@ -5,9 +5,9 @@ from typing import Any
 
 import pytest
 
-from ariadne_mcp.parsers import document
-from ariadne_mcp.parsers.base import parse_file
-from ariadne_mcp.parsers.document import ParserUnavailableError, parse_document
+from carsen_mcp.parsers import document
+from carsen_mcp.parsers.base import parse_file
+from carsen_mcp.parsers.document import ParserUnavailableError, parse_document
 
 
 class FakeDocument:

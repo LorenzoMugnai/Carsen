@@ -2,7 +2,7 @@
 
 ## Parsers
 
-Add parser support in `ariadne_mcp.parsers` and route extensions through `parse_file`. Parsers should return canonical `Chunk` objects with stable boundaries, useful metadata and sensible `kind` and `symbol` values.
+Add parser support in `carsen_mcp.parsers` and route extensions through `parse_file`. Parsers should return canonical `Chunk` objects with stable boundaries, useful metadata and sensible `kind` and `symbol` values.
 
 ## Retrieval
 

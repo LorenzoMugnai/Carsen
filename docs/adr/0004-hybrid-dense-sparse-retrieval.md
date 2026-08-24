@@ -10,7 +10,7 @@ Code and technical documents contain both semantic concepts and exact identifier
 
 ## Decision
 
-Ariadne supports hybrid retrieval that can combine dense, sparse and exact results over the same canonical chunk set. Fusion and optional reranking can be applied after candidate retrieval.
+Carsen supports hybrid retrieval that can combine dense, sparse and exact results over the same canonical chunk set. Fusion and optional reranking can be applied after candidate retrieval.
 
 ## Alternatives
 

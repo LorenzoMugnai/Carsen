@@ -3,15 +3,15 @@ from pathlib import Path
 import anyio
 from mcp.client import Client
 
-from ariadne_mcp.chunks.model import Chunk
-from ariadne_mcp.chunks.store import ChunkStore
-from ariadne_mcp.config import AriadneConfig, KnowledgeConfig, StorageConfig
-from ariadne_mcp.mcp.server import create_mcp_server
+from carsen_mcp.chunks.model import Chunk
+from carsen_mcp.chunks.store import ChunkStore
+from carsen_mcp.config import CarsenConfig, KnowledgeConfig, StorageConfig
+from carsen_mcp.mcp.server import create_mcp_server
 
 
 def test_mcp_client_calls_instance_tools_in_process(tmp_path: Path) -> None:
     async def scenario() -> None:
-        config = AriadneConfig(
+        config = CarsenConfig(
             knowledge=KnowledgeConfig(id="client_smoke"),
             storage=StorageConfig(data_directory=tmp_path / "data"),
         )

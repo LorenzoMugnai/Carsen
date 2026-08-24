@@ -4,8 +4,8 @@ from typing import Any
 
 import pytest
 
-from ariadne_mcp.reranking import DeterministicReranker, SentenceTransformersCrossEncoderReranker
-from ariadne_mcp.retrieval import HybridRetrievalConfig, HybridRetriever, SearchResult
+from carsen_mcp.reranking import DeterministicReranker, SentenceTransformersCrossEncoderReranker
+from carsen_mcp.retrieval import HybridRetrievalConfig, HybridRetriever, SearchResult
 
 
 def result(chunk_id: str, text: str, score: float = 0.1, **metadata: Any) -> SearchResult:

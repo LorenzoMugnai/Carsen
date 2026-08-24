@@ -11,5 +11,5 @@ COPY src /app/src
 RUN python -m pip install --no-cache-dir .
 
 USER nobody
-ENTRYPOINT ["ariadne"]
+ENTRYPOINT ["carsen"]
 CMD ["status"]

@@ -3,9 +3,9 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "ariadne-mcp"
+name = "carsen-mcp"
 version = "0.1.0"
-description = "Ariadne MCP code skeleton"
+description = "Carsen MCP code skeleton"
 requires-python = ">=3.12"
 dependencies = [
   "pydantic>=2.7",
@@ -25,10 +25,10 @@ dev = [
 ]
 
 [project.scripts]
-ariadne = "ariadne_mcp.cli:app"
+carsen = "carsen_mcp.cli:app"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/ariadne_mcp"]
+packages = ["src/carsen_mcp"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -48,7 +48,7 @@ ignore = ["E501"]
 
 [tool.mypy]
 python_version = "3.12"
-packages = ["ariadne_mcp"]
+packages = ["carsen_mcp"]
 ignore_missing_imports = true
 warn_unused_ignores = true
 no_strict_optional = false

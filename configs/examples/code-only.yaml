@@ -4,7 +4,7 @@ knowledge:
 storage:
   qdrant_url: http://qdrant:6333
   collection: kb_code_only
-  data_directory: /data/ariadne/code-only
+  data_directory: /data/carsen/code-only
 server:
   transport: http
   host: 127.0.0.1

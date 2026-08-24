@@ -1,6 +1,6 @@
-# Ariadne documentation
+# Carsen documentation
 
-Ariadne is a Python 3.12 MCP knowledge server for indexing local code and document sources into isolated knowledge instances. This documentation describes the implemented repository state.
+Carsen is a Python 3.12 MCP knowledge server for indexing local code and document sources into isolated knowledge instances. This documentation describes the implemented repository state.
 
 ## Contents
 

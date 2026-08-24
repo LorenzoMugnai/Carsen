@@ -4,30 +4,30 @@ from pathlib import Path
 
 from typer.testing import CliRunner
 
-from ariadne_mcp.chunks.model import Chunk
-from ariadne_mcp.chunks.store import ChunkStore
-from ariadne_mcp.cli import app
-from ariadne_mcp.config import AriadneConfig, KnowledgeConfig, ServerConfig, StorageConfig, dump_config
-from ariadne_mcp.mcp.runtime import InstanceRuntime
-from ariadne_mcp.registry import instance_metadata
+from carsen_mcp.chunks.model import Chunk
+from carsen_mcp.chunks.store import ChunkStore
+from carsen_mcp.cli import app
+from carsen_mcp.config import CarsenConfig, KnowledgeConfig, ServerConfig, StorageConfig, dump_config
+from carsen_mcp.mcp.runtime import InstanceRuntime
+from carsen_mcp.registry import instance_metadata
 
 
-def make_config(root: Path, name: str, port: int) -> AriadneConfig:
-    return AriadneConfig(
+def make_config(root: Path, name: str, port: int) -> CarsenConfig:
+    return CarsenConfig(
         knowledge=KnowledgeConfig(id=name),
         storage=StorageConfig(data_directory=root / "data" / name),
         server=ServerConfig(transport="http", port=port),
     )
 
 
-def write_registered(root: Path, config: AriadneConfig) -> Path:
+def write_registered(root: Path, config: CarsenConfig) -> Path:
     path = root / "registry" / f"{config.knowledge.id}.yaml"
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(dump_config(config), encoding="utf-8")
     return path
 
 
-def store_chunk(config: AriadneConfig, text: str, symbol: str) -> Chunk:
+def store_chunk(config: CarsenConfig, text: str, symbol: str) -> Chunk:
     assert config.storage.data_directory is not None
     chunk = Chunk(
         config.knowledge.id,
@@ -77,7 +77,7 @@ def test_cli_list_and_status_multiple_configs(tmp_path: Path, monkeypatch) -> No
     store_chunk(beta, "CALIBRATION_CONSTANT = 91", "beta_calibration")
     write_registered(tmp_path, alpha)
     write_registered(tmp_path, beta)
-    monkeypatch.setenv("ARIADNE_CONFIG_DIR", str(tmp_path / "registry"))
+    monkeypatch.setenv("CARSEN_CONFIG_DIR", str(tmp_path / "registry"))
 
     runner = CliRunner()
     listed = runner.invoke(app, ["list"])
@@ -96,13 +96,13 @@ def test_cli_serve_all_monkeypatched_transport(tmp_path: Path, monkeypatch) -> N
     beta = make_config(tmp_path, "beta", 9102)
     write_registered(tmp_path, alpha)
     write_registered(tmp_path, beta)
-    monkeypatch.setenv("ARIADNE_CONFIG_DIR", str(tmp_path / "registry"))
+    monkeypatch.setenv("CARSEN_CONFIG_DIR", str(tmp_path / "registry"))
     calls: list[tuple[str, str | None, int]] = []
 
-    def fake_run(config: AriadneConfig, transport: str | None = None) -> None:
+    def fake_run(config: CarsenConfig, transport: str | None = None) -> None:
         calls.append((config.knowledge.id, transport, config.server.port))
 
-    monkeypatch.setattr("ariadne_mcp.mcp.server.run_mcp_server", fake_run)
+    monkeypatch.setattr("carsen_mcp.mcp.server.run_mcp_server", fake_run)
     result = CliRunner().invoke(app, ["serve-all", "alpha", "beta", "--transport", "http"])
 
     assert result.exit_code == 0
@@ -112,7 +112,7 @@ def test_cli_serve_all_monkeypatched_transport(tmp_path: Path, monkeypatch) -> N
 def test_stop_reports_external_supervisor(tmp_path: Path, monkeypatch) -> None:
     alpha = make_config(tmp_path, "alpha", 9101)
     write_registered(tmp_path, alpha)
-    monkeypatch.setenv("ARIADNE_CONFIG_DIR", str(tmp_path / "registry"))
+    monkeypatch.setenv("CARSEN_CONFIG_DIR", str(tmp_path / "registry"))
     result = CliRunner().invoke(app, ["stop", "alpha"])
     assert result.exit_code == 0
     assert "external supervisor" in result.stdout

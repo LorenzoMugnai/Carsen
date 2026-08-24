@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from qdrant_client import QdrantClient
 
-from ariadne_mcp.chunks.model import Chunk
-from ariadne_mcp.embeddings import FakeEmbeddingProvider
-from ariadne_mcp.storage import QdrantVectorStore
+from carsen_mcp.chunks.model import Chunk
+from carsen_mcp.embeddings import FakeEmbeddingProvider
+from carsen_mcp.storage import QdrantVectorStore
 
 
 def make_chunk(knowledge_id: str, source_path: str, symbol: str, text: str, kind: str = "function") -> Chunk:

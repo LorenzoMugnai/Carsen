@@ -1,13 +1,13 @@
 from pathlib import Path
 
-from ariadne_mcp.chunks.model import Chunk
-from ariadne_mcp.config import AriadneConfig, KnowledgeConfig, SourcePathConfig, SourcesConfig, StorageConfig
-from ariadne_mcp.ingestion.discovery import discover_files, sha256_file
-from ariadne_mcp.ingestion.indexer import index_config
-from ariadne_mcp.ingestion.state import FileRecord, IndexState
-from ariadne_mcp.parsers.markdown import parse_markdown
-from ariadne_mcp.parsers.python import parse_python
-from ariadne_mcp.parsers.text import parse_text
+from carsen_mcp.chunks.model import Chunk
+from carsen_mcp.config import CarsenConfig, KnowledgeConfig, SourcePathConfig, SourcesConfig, StorageConfig
+from carsen_mcp.ingestion.discovery import discover_files, sha256_file
+from carsen_mcp.ingestion.indexer import index_config
+from carsen_mcp.ingestion.state import FileRecord, IndexState
+from carsen_mcp.parsers.markdown import parse_markdown
+from carsen_mcp.parsers.python import parse_python
+from carsen_mcp.parsers.text import parse_text
 
 
 def test_python_parser_fixture_symbols(tmp_path: Path) -> None:
@@ -37,7 +37,7 @@ def test_discovery_ignores_and_hashing(tmp_path: Path) -> None:
     (tmp_path / ".git" / "hidden.py").write_text("x", encoding="utf-8")
     (tmp_path / "keep.py").write_text("x", encoding="utf-8")
     (tmp_path / "skip.pyc").write_text("x", encoding="utf-8")
-    cfg = AriadneConfig(knowledge=KnowledgeConfig(id="kb")).indexing
+    cfg = CarsenConfig(knowledge=KnowledgeConfig(id="kb")).indexing
     assert [p.name for p in discover_files(tmp_path, cfg)] == ["keep.py"]
     assert sha256_file(tmp_path / "keep.py") == "2d711642b726b04401627ca9fbac32f5c8530fb1903cc4db02258717921a4881"
 
@@ -70,7 +70,7 @@ def test_indexer_persists_chunks_and_reports(tmp_path: Path) -> None:
     src = tmp_path / "src"
     src.mkdir()
     (src / "a.py").write_text("def helper():\n    return 1\n", encoding="utf-8")
-    cfg = AriadneConfig(knowledge=KnowledgeConfig(id="kb"), storage=StorageConfig(data_directory=tmp_path / "data"), sources=SourcesConfig(code=[SourcePathConfig(path=src)]))
+    cfg = CarsenConfig(knowledge=KnowledgeConfig(id="kb"), storage=StorageConfig(data_directory=tmp_path / "data"), sources=SourcesConfig(code=[SourcePathConfig(path=src)]))
     report = index_config(cfg)
     assert report.new == 1 and report.chunks >= 2
     assert list((tmp_path / "data" / "chunks").glob("*.jsonl"))

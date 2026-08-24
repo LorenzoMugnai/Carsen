@@ -4,7 +4,7 @@ knowledge:
 storage:
   qdrant_url: http://qdrant:6333
   collection: kb_mixed
-  data_directory: /data/ariadne/mixed
+  data_directory: /data/carsen/mixed
 server:
   transport: http
   host: 127.0.0.1

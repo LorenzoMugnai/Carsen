@@ -22,7 +22,7 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Install Ariadne
+      - name: Install Carsen
         run: uv sync --extra dev
 
       - name: Lint

@@ -6,32 +6,32 @@ services:
     volumes:
       - qdrant_data:/qdrant/storage
 
-  ariadne-alpha:
+  carsen-alpha:
     build: .
-    image: ariadne-mcp:latest
+    image: carsen-mcp:latest
     command: ["serve", "--config", "/configs/alpha.yaml", "--transport", "http"]
     ports:
       - "8765:8765"
     volumes:
       - ./configs/examples/docker-alpha.yaml:/configs/alpha.yaml:ro
       - ./example-workspace:/workspace:ro
-      - ariadne_alpha_data:/data/ariadne/alpha
+      - carsen_alpha_data:/data/carsen/alpha
     depends_on:
       - qdrant
 
-  ariadne-beta:
-    image: ariadne-mcp:latest
+  carsen-beta:
+    image: carsen-mcp:latest
     command: ["serve", "--config", "/configs/beta.yaml", "--transport", "http"]
     ports:
       - "8766:8766"
     volumes:
       - ./configs/examples/docker-beta.yaml:/configs/beta.yaml:ro
       - ./example-workspace:/workspace:ro
-      - ariadne_beta_data:/data/ariadne/beta
+      - carsen_beta_data:/data/carsen/beta
     depends_on:
       - qdrant
 
 volumes:
   qdrant_data:
-  ariadne_alpha_data:
-  ariadne_beta_data:
+  carsen_alpha_data:
+  carsen_beta_data:

@@ -5,15 +5,15 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
-from ariadne_mcp.chunks.model import Chunk
-from ariadne_mcp.chunks.store import ChunkStore
-from ariadne_mcp.cli import app
-from ariadne_mcp.config import AriadneConfig, KnowledgeConfig, ServerConfig, StorageConfig
-from ariadne_mcp.mcp.runtime import InstanceRuntime
+from carsen_mcp.chunks.model import Chunk
+from carsen_mcp.chunks.store import ChunkStore
+from carsen_mcp.cli import app
+from carsen_mcp.config import CarsenConfig, KnowledgeConfig, ServerConfig, StorageConfig
+from carsen_mcp.mcp.runtime import InstanceRuntime
 
 
-def cfg(tmp_path: Path, knowledge_id: str) -> AriadneConfig:
-    return AriadneConfig(knowledge=KnowledgeConfig(id=knowledge_id), storage=StorageConfig(data_directory=tmp_path / knowledge_id), server=ServerConfig(transport="stdio", port=8123))
+def cfg(tmp_path: Path, knowledge_id: str) -> CarsenConfig:
+    return CarsenConfig(knowledge=KnowledgeConfig(id=knowledge_id), storage=StorageConfig(data_directory=tmp_path / knowledge_id), server=ServerConfig(transport="stdio", port=8123))
 
 
 def chunk(knowledge_id: str, source_path: str, symbol: str | None, text: str, order: int, **metadata: object) -> Chunk:
@@ -22,7 +22,7 @@ def chunk(knowledge_id: str, source_path: str, symbol: str | None, text: str, or
     return Chunk(knowledge_id, source_path, kind, symbol, order * 10 + 1, order * 10 + 5, text, order=order, metadata={"source_path": source_path, "order": order, **metadata})
 
 
-def populate(config: AriadneConfig, chunks: list[Chunk]) -> None:
+def populate(config: CarsenConfig, chunks: list[Chunk]) -> None:
     assert config.storage.data_directory is not None
     by_path: dict[str, list[Chunk]] = {}
     for item in chunks:
@@ -82,11 +82,11 @@ def test_cli_serve_transport_selection(monkeypatch: pytest.MonkeyPatch, tmp_path
     config_path.write_text(f"knowledge:\n  id: alpha\nstorage:\n  data_directory: {data_dir}\nserver:\n  transport: http\n  port: 9001\n", encoding="utf-8")
     called = {}
 
-    def fake_run(config: AriadneConfig, transport: str | None = None) -> None:
+    def fake_run(config: CarsenConfig, transport: str | None = None) -> None:
         called["knowledge_id"] = config.knowledge.id
         called["transport"] = transport
 
-    monkeypatch.setattr("ariadne_mcp.mcp.server.run_mcp_server", fake_run)
+    monkeypatch.setattr("carsen_mcp.mcp.server.run_mcp_server", fake_run)
     result = CliRunner().invoke(app, ["serve", "--config", str(config_path), "--transport", "stdio"])
 
     assert result.exit_code == 0

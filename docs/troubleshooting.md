@@ -2,7 +2,7 @@
 
 ## Configuration not found
 
-Use `ariadne list` to inspect registered instances, or pass `--config path/to/config.yaml` explicitly.
+Use `carsen list` to inspect registered instances, or pass `--config path/to/config.yaml` explicitly.
 
 ## Invalid knowledge ID
 
@@ -14,7 +14,7 @@ Check that source paths exist from the configuration file's directory, ignored d
 
 ## MCP package unavailable
 
-Serving requires the `mcp` package. Install project dependencies in the environment running `ariadne serve`.
+Serving requires the `mcp` package. Install project dependencies in the environment running `carsen serve`.
 
 ## HTTP port conflicts
 

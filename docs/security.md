@@ -2,7 +2,7 @@
 
 ## Assumptions
 
-Ariadne indexes files it can read and serves retrieved text to MCP clients. It assumes configurations, source paths and connected clients are trusted unless external controls are added.
+Carsen indexes files it can read and serves retrieved text to MCP clients. It assumes configurations, source paths and connected clients are trusted unless external controls are added.
 
 ## Boundaries
 

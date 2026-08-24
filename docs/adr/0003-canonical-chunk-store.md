@@ -10,7 +10,7 @@ Parsed source material needs stable chunk identities, citation ranges and metada
 
 ## Decision
 
-Ariadne maintains a canonical chunk store per instance. Parsed chunks, source metadata and stable identifiers are recorded before being embedded or written to retrieval indexes.
+Carsen maintains a canonical chunk store per instance. Parsed chunks, source metadata and stable identifiers are recorded before being embedded or written to retrieval indexes.
 
 ## Alternatives
 

@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from ariadne_mcp.config import load_config
+from carsen_mcp.config import load_config
 
 
 def write_config(path: Path, text: str) -> Path:
@@ -20,8 +20,8 @@ def test_config_validation(tmp_path: Path) -> None:
 
 
 def test_env_expansion(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("ARIADNE_TEST_DATA", str(tmp_path / "data"))
-    path = write_config(tmp_path / "env.yaml", "knowledge:\n  id: env\nstorage:\n  data_directory: ${ARIADNE_TEST_DATA}/project\n")
+    monkeypatch.setenv("CARSEN_TEST_DATA", str(tmp_path / "data"))
+    path = write_config(tmp_path / "env.yaml", "knowledge:\n  id: env\nstorage:\n  data_directory: ${CARSEN_TEST_DATA}/project\n")
     assert load_config(path).storage.data_directory == tmp_path / "data" / "project"
 
 

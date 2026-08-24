@@ -5,8 +5,8 @@ from typing import Any
 
 import pytest
 
-from ariadne_mcp.embeddings import FakeEmbeddingProvider, SentenceTransformersEmbeddingProvider
-from ariadne_mcp.retrieval import DenseRetriever, SearchResult
+from carsen_mcp.embeddings import FakeEmbeddingProvider, SentenceTransformersEmbeddingProvider
+from carsen_mcp.retrieval import DenseRetriever, SearchResult
 
 
 def dot(a: list[float], b: list[float]) -> float:

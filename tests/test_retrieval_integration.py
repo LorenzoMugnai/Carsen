@@ -4,17 +4,17 @@ from pathlib import Path
 
 from qdrant_client import QdrantClient
 
-from ariadne_mcp.chunks.model import Chunk
-from ariadne_mcp.chunks.store import ChunkStore
-from ariadne_mcp.config import AriadneConfig, KnowledgeConfig, ModelProviderConfig, ModelsConfig, StorageConfig
-from ariadne_mcp.embeddings import FakeEmbeddingProvider
-from ariadne_mcp.ingestion.indexer import delete_index_config, index_vectors_for_config, reembed_config
-from ariadne_mcp.mcp.runtime import InstanceRuntime
-from ariadne_mcp.storage import QdrantVectorStore
+from carsen_mcp.chunks.model import Chunk
+from carsen_mcp.chunks.store import ChunkStore
+from carsen_mcp.config import CarsenConfig, KnowledgeConfig, ModelProviderConfig, ModelsConfig, StorageConfig
+from carsen_mcp.embeddings import FakeEmbeddingProvider
+from carsen_mcp.ingestion.indexer import delete_index_config, index_vectors_for_config, reembed_config
+from carsen_mcp.mcp.runtime import InstanceRuntime
+from carsen_mcp.storage import QdrantVectorStore
 
 
-def cfg(tmp_path: Path, knowledge_id: str, collection: str | None = None) -> AriadneConfig:
-    return AriadneConfig(
+def cfg(tmp_path: Path, knowledge_id: str, collection: str | None = None) -> CarsenConfig:
+    return CarsenConfig(
         knowledge=KnowledgeConfig(id=knowledge_id),
         storage=StorageConfig(data_directory=tmp_path / knowledge_id, collection=collection),
         models=ModelsConfig(embedding=ModelProviderConfig(provider="fake", model="fake", dimensions=8)),
@@ -25,7 +25,7 @@ def chunk(knowledge_id: str, source_path: str, text: str, order: int = 0) -> Chu
     return Chunk(knowledge_id, source_path, "text", None, 1, 2, text, order=order, metadata={"source_path": source_path})
 
 
-def populate(config: AriadneConfig, chunks: list[Chunk]) -> None:
+def populate(config: CarsenConfig, chunks: list[Chunk]) -> None:
     assert config.storage.data_directory is not None
     store = ChunkStore(config.storage.data_directory)
     by_source: dict[str, list[Chunk]] = {}

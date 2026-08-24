@@ -5,16 +5,16 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
-from ariadne_mcp.chunks.model import Chunk
-from ariadne_mcp.chunks.store import ChunkStore
-from ariadne_mcp.cli import app
-from ariadne_mcp.config import AriadneConfig, KnowledgeConfig, StorageConfig, dump_config
-from ariadne_mcp.evaluation import evaluate_results, load_evaluation_dataset
-from ariadne_mcp.retrieval import SearchResult
+from carsen_mcp.chunks.model import Chunk
+from carsen_mcp.chunks.store import ChunkStore
+from carsen_mcp.cli import app
+from carsen_mcp.config import CarsenConfig, KnowledgeConfig, StorageConfig, dump_config
+from carsen_mcp.evaluation import evaluate_results, load_evaluation_dataset
+from carsen_mcp.retrieval import SearchResult
 
 
 def make_config(tmp_path: Path) -> Path:
-    cfg = AriadneConfig(knowledge=KnowledgeConfig(id="alpha"), storage=StorageConfig(data_directory=tmp_path / "data"))
+    cfg = CarsenConfig(knowledge=KnowledgeConfig(id="alpha"), storage=StorageConfig(data_directory=tmp_path / "data"))
     chunk = Chunk("alpha", "src/settings.py", "function", "calibrate", 1, 2, "CALIBRATION_CONSTANT = 42", metadata={"source_type": "code", "source_path": "src/settings.py"})
     ChunkStore(tmp_path / "data").replace_file_chunks(chunk.source_path, [chunk])
     path = tmp_path / "alpha.yaml"
@@ -57,7 +57,7 @@ def test_optional_real_model_marker_example() -> None:
 def test_docs_and_changelog_mentions() -> None:
     root = Path(__file__).resolve().parents[1]
     assert "model" in (root / "docs" / "testing.md").read_text(encoding="utf-8")
-    assert "ariadne search" in (root / "docs" / "retrieval.md").read_text(encoding="utf-8")
+    assert "carsen search" in (root / "docs" / "retrieval.md").read_text(encoding="utf-8")
     assert "--embed" in (root / "docs" / "indexing.md").read_text(encoding="utf-8")
     changelog = (root / "CHANGELOG.md").read_text(encoding="utf-8")
     assert "V1 retrieval integration" in changelog

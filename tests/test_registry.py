@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from ariadne_mcp.registry import create_config, discover_configs, list_configs
+from carsen_mcp.registry import create_config, discover_configs, list_configs
 
 
 def test_create_no_overwrite(tmp_path: Path) -> None:

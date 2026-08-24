@@ -1,6 +1,6 @@
 # Configuration
 
-Ariadne uses YAML. A file represents one knowledge instance and is validated by `ariadne_mcp.config`.
+Carsen uses YAML. A file represents one knowledge instance and is validated by `carsen_mcp.config`.
 
 ## Top-level fields
 
@@ -8,7 +8,7 @@ Ariadne uses YAML. A file represents one knowledge instance and is validated by 
 knowledge:
   id: example
   name: Example Knowledge Base
-  description: Example Ariadne knowledge instance.
+  description: Example Carsen knowledge instance.
 server:
   transport: http
   host: 127.0.0.1
@@ -16,7 +16,7 @@ server:
 storage:
   qdrant_url: http://127.0.0.1:6333
   collection: kb_example
-  data_directory: "${HOME}/.local/share/ariadne/example"
+  data_directory: "${HOME}/.local/share/carsen/example"
 models:
   embedding:
     provider: sentence_transformers
@@ -47,7 +47,7 @@ policy:
 
 - `knowledge.id` must be filesystem-safe. If `name` is absent, it defaults to the ID.
 - `server.transport` supports `stdio` and `http`; HTTP is served as streamable HTTP on `/mcp`.
-- `storage.collection` defaults to `kb_<knowledge_id>`. `storage.data_directory` defaults under `~/.local/share/ariadne/<id>`.
+- `storage.collection` defaults to `kb_<knowledge_id>`. `storage.data_directory` defaults under `~/.local/share/carsen/<id>`.
 - Environment variables and `~` are expanded in YAML values. Relative paths are resolved against the YAML file location.
 - `retrieval.fusion` currently accepts only `rrf`.
 - `sources.code` and `sources.documents` contain entries with `path`, optional `repository_name`, optional `type` and optional `tags`.

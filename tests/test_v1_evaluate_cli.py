@@ -4,14 +4,14 @@ from pathlib import Path
 
 from typer.testing import CliRunner
 
-from ariadne_mcp.chunks.model import Chunk
-from ariadne_mcp.chunks.store import ChunkStore
-from ariadne_mcp.cli import app
-from ariadne_mcp.config import AriadneConfig, KnowledgeConfig, StorageConfig, dump_config
+from carsen_mcp.chunks.model import Chunk
+from carsen_mcp.chunks.store import ChunkStore
+from carsen_mcp.cli import app
+from carsen_mcp.config import CarsenConfig, KnowledgeConfig, StorageConfig, dump_config
 
 
 def write_eval_fixture(tmp_path: Path) -> tuple[Path, Path, str]:
-    cfg = AriadneConfig(knowledge=KnowledgeConfig(id="eval"), storage=StorageConfig(data_directory=tmp_path / "data"))
+    cfg = CarsenConfig(knowledge=KnowledgeConfig(id="eval"), storage=StorageConfig(data_directory=tmp_path / "data"))
     target = Chunk("eval", "src/constants.py", "function", "calibrate", 1, 2, "CALIBRATION_CONSTANT = 42", metadata={"source_type": "code", "source_path": "src/constants.py"})
     other = Chunk("eval", "src/other.py", "function", "helper", 1, 2, "unrelated helper", metadata={"source_type": "code", "source_path": "src/other.py"})
     store = ChunkStore(tmp_path / "data")
@@ -36,7 +36,7 @@ def test_evaluate_cli_with_config(tmp_path: Path) -> None:
 
 def test_cli_reference_documents_key_commands() -> None:
     text = (Path(__file__).resolve().parents[1] / "docs" / "cli-reference.md").read_text(encoding="utf-8")
-    for command in ["ariadne search", "ariadne evaluate", "ariadne serve-all", "ariadne index", "ariadne delete-index"]:
+    for command in ["carsen search", "carsen evaluate", "carsen serve-all", "carsen index", "carsen delete-index"]:
         assert command in text
 
 

@@ -1,12 +1,12 @@
 # Development
 
-Ariadne is a Python package using Hatchling metadata in `pyproject.toml`. The console script is `ariadne = ariadne_mcp.cli:app` and the package source is under `src/ariadne_mcp`.
+Carsen is a Python package using Hatchling metadata in `pyproject.toml`. The console script is `carsen = carsen_mcp.cli:app` and the package source is under `src/carsen_mcp`.
 
 ## Useful commands
 
 ```bash
 python -m pip install -e '.[test]'
-ariadne --help
+carsen --help
 pytest
 ```
 

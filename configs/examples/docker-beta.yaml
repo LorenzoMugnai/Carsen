@@ -4,7 +4,7 @@ knowledge:
 storage:
   qdrant_url: http://qdrant:6333
   collection: kb_docker_beta
-  data_directory: /data/ariadne/docker-beta
+  data_directory: /data/carsen/docker-beta
 server:
   transport: http
   host: 0.0.0.0

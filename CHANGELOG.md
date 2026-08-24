@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to Ariadne are recorded here. The project follows British English in user-facing documentation.
+All notable changes to Carsen are recorded here. The project follows British English in user-facing documentation.
 
 ## Unreleased
 
@@ -8,15 +8,15 @@ All notable changes to Ariadne are recorded here. The project follows British En
 - Added MCP client/runtime end-to-end coverage for isolated knowledge instances and local tool behaviour.
 - Added redacted search diagnostics for sparse fallback and hybrid candidate rankings.
 - Added YAML evaluation dataset loading with Recall@k and MRR metrics for retrieval checks.
-- Added `ariadne evaluate` and a CLI reference covering search, evaluation and operational smoke procedures.
+- Added `carsen evaluate` and a CLI reference covering search, evaluation and operational smoke procedures.
 - Verified operational smoke paths for Docker-hosted Qdrant indexing/search and streamable HTTP MCP client calls.
-- Documented the Ariadne entry point, multi-instance model, isolation guarantees and LLM-independent retrieval approach.
+- Documented the Carsen entry point, multi-instance model, isolation guarantees and LLM-independent retrieval approach.
 - Added initial architecture decision records for instance isolation, Qdrant collection layout, canonical chunks, hybrid retrieval, citations and LLM independence.
 - Captured current 0.1.0 progress for early adopters and maintainers.
 
 ## 0.1.0 - In progress
 
-- Initial Ariadne MCP package scaffold with `uv`-based development workflow.
+- Initial Carsen MCP package scaffold with `uv`-based development workflow.
 - CLI support for creating, listing, validating, indexing and serving named knowledge instances.
 - Per-instance configuration, registry conventions and status inspection.
 - Qdrant-backed storage foundations with separate collections per knowledge instance.

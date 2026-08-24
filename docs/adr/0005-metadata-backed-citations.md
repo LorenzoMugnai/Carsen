@@ -10,7 +10,7 @@ MCP clients and downstream LLMs need evidence they can display or quote. Citatio
 
 ## Decision
 
-Ariadne citations are backed by chunk metadata captured during parsing and indexing, including source identifiers and location information where available. Retrieval responses should carry enough metadata for clients to inspect the cited source.
+Carsen citations are backed by chunk metadata captured during parsing and indexing, including source identifiers and location information where available. Retrieval responses should carry enough metadata for clients to inspect the cited source.
 
 ## Alternatives
 
