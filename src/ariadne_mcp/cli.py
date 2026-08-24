@@ -100,13 +100,14 @@ def index(
     name: Annotated[str | None, typer.Argument(help="Registered knowledge instance to index.")] = None,
     config: Annotated[Path | None, typer.Option("--config", help="Explicit YAML configuration to index.")] = None,
     force: Annotated[bool, typer.Option(help="Reprocess all configured sources when indexing is implemented.")] = False,
+    embed: Annotated[bool, typer.Option(help="Embed canonical chunks and upsert the configured Qdrant collection.")] = False,
 ) -> None:
     """Index configured sources incrementally."""
 
     from .ingestion.indexer import index_config
 
     cfg = _resolve_config(name, config)
-    report = index_config(cfg, force=force)
+    report = index_config(cfg, force=force, embed=embed)
     typer.echo(f"Indexed '{cfg.knowledge.id}': new={report.new} unchanged={report.unchanged} changed={report.changed} deleted={report.deleted} chunks={report.chunks}")
 
 
@@ -161,16 +162,26 @@ def stop(name: Annotated[str | None, typer.Argument(help="Registered knowledge i
 
 @app.command()
 def reembed(name: Annotated[str | None, typer.Argument(help="Registered knowledge instance to re-embed.")] = None, config: Annotated[Path | None, typer.Option("--config", help="Explicit YAML configuration to re-embed.")] = None) -> None:
-    """Re-embed canonical chunks without reparsing when implemented."""
+    """Re-embed canonical chunks without reparsing."""
 
-    _runtime_stub("Re-embed", name, config)
+    from .ingestion.indexer import reembed_config
+
+    cfg = _resolve_config(name, config)
+    count = reembed_config(cfg)
+    typer.echo(f"Re-embedded '{cfg.knowledge.id}': chunks={count}")
 
 
 @app.command("delete-index")
 def delete_index(name: Annotated[str | None, typer.Argument(help="Registered knowledge instance whose index will be deleted.")] = None, config: Annotated[Path | None, typer.Option("--config", help="Explicit YAML configuration whose index will be deleted.")] = None) -> None:
-    """Delete an instance-specific index when storage is implemented."""
+    """Delete an instance-specific local and dense index."""
 
-    _runtime_stub("Delete index", name, config)
+    from .ingestion.indexer import delete_index_config
+
+    cfg = _resolve_config(name, config)
+    existed, vector_error = delete_index_config(cfg)
+    typer.echo(f"Deleted index for '{cfg.knowledge.id}': local={existed}")
+    if vector_error:
+        typer.echo(f"Vector collection clear skipped: {vector_error}")
 
 
 if __name__ == "__main__":

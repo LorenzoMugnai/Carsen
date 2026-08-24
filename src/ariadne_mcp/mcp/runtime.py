@@ -10,18 +10,30 @@ from ariadne_mcp.chunks.model import Chunk
 from ariadne_mcp.chunks.store import ChunkStore
 from ariadne_mcp.citations import CitationFormatter
 from ariadne_mcp.config import AriadneConfig
-from ariadne_mcp.retrieval import SearchResult, SourceExpander, SparseRetriever, lookup_symbol
+from ariadne_mcp.embeddings import EmbeddingProvider, embedding_provider_from_config
+from ariadne_mcp.retrieval import (
+    DenseRetriever,
+    HybridRetrievalConfig,
+    HybridRetriever,
+    SearchResult,
+    SourceExpander,
+    SparseRetriever,
+    lookup_symbol,
+)
+from ariadne_mcp.storage import QdrantVectorStore, qdrant_store_from_config
 
 
 class InstanceRuntime:
     """Serve tools for exactly one configured knowledge instance."""
 
-    def __init__(self, config: AriadneConfig) -> None:
+    def __init__(self, config: AriadneConfig, embedding_provider: EmbeddingProvider | None = None, vector_store: QdrantVectorStore | None = None) -> None:
         if config.storage.data_directory is None:
             raise ValueError("storage.data_directory is required for MCP runtime")
         self.config = config
         self.store = ChunkStore(Path(config.storage.data_directory))
         self.formatter = CitationFormatter()
+        self.embedding_provider = embedding_provider
+        self.vector_store = vector_store
 
     @property
     def chunks(self) -> list[Chunk]:
@@ -33,7 +45,7 @@ class InstanceRuntime:
         return {"knowledge_id": self.config.knowledge.id, "name": self.config.knowledge.name, "description": self.config.knowledge.description, "chunk_count": len(chunks), "source_count": len(sources)}
 
     def search_knowledge(self, query: str, limit: int = 8, filters: dict[str, Any] | None = None) -> list[dict[str, Any]]:
-        return [self._serialise_result(result) for result in self._sparse(filters).search(query, limit=limit, filters=filters)]
+        return [self._serialise_result(result) for result in self._search(query, limit, filters)]
 
     def search_code(self, query: str, limit: int = 8, filters: dict[str, Any] | None = None) -> list[dict[str, Any]]:
         merged = {**(filters or {}), "source_type": "code"}
@@ -78,6 +90,22 @@ class InstanceRuntime:
         if filters:
             chunks = [chunk for chunk in chunks if all(chunk.metadata.get(k) == v for k, v in filters.items())]
         return SparseRetriever(chunks=chunks)
+
+    def _search(self, query: str, limit: int, filters: dict[str, Any] | None) -> list[SearchResult]:
+        sparse = self._sparse(None)
+        try:
+            provider = self.embedding_provider or embedding_provider_from_config(self.config.models.embedding)
+            store = self.vector_store or qdrant_store_from_config(self.config, provider.dimensions)
+            dense = DenseRetriever(provider, store)
+            config = HybridRetrievalConfig(
+                dense_candidates=self.config.retrieval.dense_candidates,
+                sparse_candidates=self.config.retrieval.sparse_candidates,
+                final_results=limit,
+                max_results_per_source=self.config.retrieval.max_results_per_source,
+            )
+            return HybridRetriever(dense, sparse, config=config).search(query, filters=filters)
+        except Exception:
+            return sparse.search(query, limit=limit, filters=filters)
 
     def _find_chunk(self, source_id: str | None = None, chunk_id: str | None = None) -> Chunk | None:
         for chunk in self.chunks:

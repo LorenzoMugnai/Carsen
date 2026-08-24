@@ -7,6 +7,8 @@ import importlib
 import math
 from typing import Any, Protocol
 
+from ariadne_mcp.config import ModelProviderConfig
+
 
 class EmbeddingProvider(Protocol):
     """Protocol for text embedding providers."""
@@ -75,3 +77,15 @@ class SentenceTransformersEmbeddingProvider:
 
     def embed_query(self, text: str) -> list[float]:
         return self.embed_texts([text])[0]
+
+
+def embedding_provider_from_config(config: ModelProviderConfig) -> EmbeddingProvider:
+    """Build an embedding provider from model configuration without eager model loading."""
+
+    provider = config.provider.lower().replace("-", "_")
+    if provider in {"fake", "local_fake", "test"}:
+        return FakeEmbeddingProvider(dimensions=config.dimensions or 8)
+    if provider in {"sentence_transformers", "sentence_transformer"}:
+        device = None if config.device == "auto" else config.device
+        return SentenceTransformersEmbeddingProvider(config.model, dimensions=config.dimensions, device=device)
+    raise ValueError(f"unsupported embedding provider: {config.provider}")

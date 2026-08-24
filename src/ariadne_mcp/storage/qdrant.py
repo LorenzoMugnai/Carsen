@@ -37,6 +37,13 @@ class QdrantVectorStore:
         if not self.client.collection_exists(self.collection_name):
             self.recreate_collection()
 
+    def delete_collection(self) -> bool:
+        """Delete only this instance collection when it exists."""
+
+        if not self.client.collection_exists(self.collection_name):
+            return False
+        return bool(self.client.delete_collection(collection_name=self.collection_name))
+
     def upsert_chunks(self, chunks: list[Chunk], vectors: list[list[float]]) -> None:
         if len(chunks) != len(vectors):
             raise ValueError("chunks and vectors must have the same length")
@@ -102,3 +109,16 @@ def _filter(filters: dict[str, Any] | None) -> Filter | None:
     if not filters:
         return None
     return Filter(must=[FieldCondition(key=key, match=MatchValue(value=value)) for key, value in filters.items()])
+
+
+def qdrant_store_from_config(config: Any, dimensions: int, client: QdrantClient | None = None) -> QdrantVectorStore:
+    """Create a Qdrant vector store for one configured instance."""
+
+    collection = config.storage.collection
+    if collection is None:
+        raise ValueError("storage.collection is required")
+    return QdrantVectorStore(
+        client or QdrantClient(url=config.storage.qdrant_url, check_compatibility=False),
+        collection,
+        dimensions=dimensions,
+    )
