@@ -1,0 +1,74 @@
+"""Embedding providers used by retrieval components."""
+
+from __future__ import annotations
+
+import hashlib
+import importlib
+import math
+from typing import Protocol
+
+
+class EmbeddingProvider(Protocol):
+    """Protocol for text embedding providers."""
+
+    dimensions: int
+
+    def embed_texts(self, texts: list[str]) -> list[list[float]]:
+        """Embed a batch of texts."""
+        ...
+
+    def embed_query(self, text: str) -> list[float]:
+        """Embed one search query."""
+        ...
+
+
+class FakeEmbeddingProvider:
+    """Deterministic lightweight embedding provider for tests and smoke checks."""
+
+    def __init__(self, dimensions: int = 8) -> None:
+        if dimensions < 1:
+            raise ValueError("dimensions must be positive")
+        self.dimensions = dimensions
+
+    def embed_texts(self, texts: list[str]) -> list[list[float]]:
+        return [self._embed(text) for text in texts]
+
+    def embed_query(self, text: str) -> list[float]:
+        return self._embed(text)
+
+    def _embed(self, text: str) -> list[float]:
+        digest = hashlib.sha256(text.encode("utf-8")).digest()
+        values = [((digest[index % len(digest)] / 255.0) * 2.0) - 1.0 for index in range(self.dimensions)]
+        norm = math.sqrt(sum(value * value for value in values)) or 1.0
+        return [value / norm for value in values]
+
+
+class SentenceTransformersEmbeddingProvider:
+    """Optional sentence-transformers provider imported lazily at runtime."""
+
+    def __init__(self, model_name: str, dimensions: int | None = None, device: str | None = None) -> None:
+        self.model_name = model_name
+        self.dimensions = dimensions or 0
+        self.device = device
+        self._model = None
+
+    def _load_model(self):
+        if self._model is None:
+            try:
+                module = importlib.import_module("sentence_transformers")
+            except ImportError as exc:
+                raise RuntimeError("sentence-transformers is not installed; install the optional embedding dependency") from exc
+            SentenceTransformer = module.SentenceTransformer
+            kwargs = {"device": self.device} if self.device else {}
+            self._model = SentenceTransformer(self.model_name, **kwargs)
+            if not self.dimensions:
+                self.dimensions = int(self._model.get_sentence_embedding_dimension() or 0)
+        return self._model
+
+    def embed_texts(self, texts: list[str]) -> list[list[float]]:
+        model = self._load_model()
+        vectors = model.encode(texts, convert_to_numpy=False, normalize_embeddings=True)
+        return [list(map(float, vector)) for vector in vectors]
+
+    def embed_query(self, text: str) -> list[float]:
+        return self.embed_texts([text])[0]
