@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="docs/assets/logo.png" alt="Carsen logo" width="144" />
+<img src="docs/assets/logo.png" alt="Carsen logo" width="288" />
 
 <h1>Carsen</h1>
 
