@@ -8,7 +8,7 @@ from typing import Annotated
 import typer
 
 from .config import AriadneConfig, load_config
-from .registry import create_config, discover_configs, list_configs
+from .registry import create_config, discover_configs, instance_metadata, list_configs
 
 app = typer.Typer(help="Ariadne Knowledge Engine: manage isolated knowledge MCP instances.")
 
@@ -50,9 +50,10 @@ def list_command(config: Annotated[Path | None, typer.Option("--config", help="I
     if not paths:
         typer.echo("No Ariadne configurations found.")
         return
-    typer.echo("NAME\tSTATUS\tPORT\tCOLLECTION\tDATA DIRECTORY")
+    typer.echo("NAME\tSTATUS\tPORT\tCHUNKS\tSOURCES\tCOLLECTION\tDATA DIRECTORY")
     for cfg in list_configs(config):
-        typer.echo(f"{cfg.knowledge.id}\tstopped\t{cfg.server.port}\t{cfg.storage.collection}\t{cfg.storage.data_directory}")
+        meta = instance_metadata(cfg)
+        typer.echo(f"{meta['name']}\t{meta['status']}\t{meta['port']}\t{meta['chunks']}\t{meta['sources']}\t{meta['collection']}\t{meta['data_directory']}")
 
 
 @app.command()
@@ -74,14 +75,17 @@ def status(
     cfg = _resolve_config(name, config) if (name or config) else None
     if cfg is None:
         count = len(discover_configs())
-        typer.echo(f"Ariadne is installed; {count} configuration(s) discovered. Runtime commands are not active yet.")
+        typer.echo(f"Ariadne is installed; {count} configuration(s) discovered. Use 'ariadne list' for per-instance counts.")
         return
+    meta = instance_metadata(cfg)
     typer.echo(f"Knowledge: {cfg.knowledge.id}")
-    typer.echo(f"Status: stopped")
+    typer.echo(f"Status: {meta['status']}")
     typer.echo(f"Transport: {cfg.server.transport}")
     typer.echo(f"Endpoint: {cfg.server.host}:{cfg.server.port}")
     typer.echo(f"Collection: {cfg.storage.collection}")
     typer.echo(f"State directory: {cfg.storage.data_directory}")
+    typer.echo(f"Chunks: {meta['chunks']}")
+    typer.echo(f"Sources: {meta['sources']}")
 
 
 def _runtime_stub(command: str, name: str | None, config: Path | None) -> None:
@@ -125,11 +129,34 @@ def serve(
         raise typer.BadParameter(str(exc)) from exc
 
 
+@app.command("serve-all")
+def serve_all(
+    names: Annotated[list[str] | None, typer.Argument(help="Registered knowledge instances to serve; defaults to all registered instances.")] = None,
+    transport: Annotated[str | None, typer.Option(help="Override configured transport: stdio or http.")] = None,
+) -> None:
+    """Serve multiple registered knowledge instances sequentially under an external supervisor."""
+
+    if transport is not None and transport not in {"stdio", "http"}:
+        raise typer.BadParameter("transport must be 'stdio' or 'http'")
+    from .mcp.server import MCPUnavailableError, run_mcp_server
+
+    configs = [_resolve_config(name, None) for name in names] if names else list_configs()
+    if not configs:
+        typer.echo("No Ariadne configurations found.")
+        return
+    for cfg in configs:
+        try:
+            run_mcp_server(cfg, transport=transport)
+        except MCPUnavailableError as exc:
+            raise typer.BadParameter(str(exc)) from exc
+
+
 @app.command()
 def stop(name: Annotated[str | None, typer.Argument(help="Registered knowledge instance to stop.")] = None, config: Annotated[Path | None, typer.Option("--config", help="Explicit YAML configuration to stop.")] = None) -> None:
     """Stop a running instance when lifecycle management is implemented."""
 
-    _runtime_stub("Stop", name, config)
+    cfg = _resolve_config(name, config)
+    typer.echo(f"Stop for '{cfg.knowledge.id}' is managed by the external supervisor; no local process registry is active.")
 
 
 @app.command()

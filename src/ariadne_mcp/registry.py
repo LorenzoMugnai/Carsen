@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+from typing import Any
 
+from .chunks.store import ChunkStore
 from .config import AriadneConfig, SourcePathConfig, default_config, dump_config, load_config
 
 
@@ -62,3 +64,29 @@ def list_configs(explicit: Path | None = None, base_dir: Path | None = None) -> 
     """Load all discoverable valid configurations."""
 
     return [load_config(path) for path in discover_configs(explicit, base_dir)]
+
+
+def instance_metadata(config: AriadneConfig) -> dict[str, Any]:
+    """Return best-effort local metadata for one registered instance."""
+
+    chunk_count = 0
+    source_count = 0
+    data_directory = config.storage.data_directory
+    if data_directory is not None:
+        try:
+            chunks = [chunk for chunk in ChunkStore(data_directory).load_all_chunks() if chunk.knowledge_id == config.knowledge.id]
+            chunk_count = len(chunks)
+            source_count = len({chunk.source_path for chunk in chunks})
+        except Exception:
+            chunk_count = 0
+            source_count = 0
+    return {
+        "name": config.knowledge.id,
+        "status": "runnable",
+        "port": config.server.port,
+        "transport": config.server.transport,
+        "collection": config.storage.collection,
+        "data_directory": str(data_directory),
+        "chunks": chunk_count,
+        "sources": source_count,
+    }
