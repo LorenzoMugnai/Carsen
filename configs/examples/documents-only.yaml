@@ -1,0 +1,16 @@
+knowledge:
+  id: documents_only
+  name: Documents Only Example
+storage:
+  qdrant_url: http://qdrant:6333
+  collection: kb_documents_only
+  data_directory: /data/ariadne/documents-only
+server:
+  transport: http
+  host: 127.0.0.1
+  port: 8766
+sources:
+  documents:
+    - path: /workspace/documents
+      repository_name: example-documents
+      type: documents

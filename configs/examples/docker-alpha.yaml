@@ -1,0 +1,19 @@
+knowledge:
+  id: docker_alpha
+  name: Docker Alpha Example
+storage:
+  qdrant_url: http://qdrant:6333
+  collection: kb_docker_alpha
+  data_directory: /data/ariadne/docker-alpha
+server:
+  transport: http
+  host: 0.0.0.0
+  port: 8765
+sources:
+  code:
+    - path: /workspace/alpha/code
+      repository_name: alpha-code
+      type: code
+  documents:
+    - path: /workspace/alpha/documents
+      type: documents

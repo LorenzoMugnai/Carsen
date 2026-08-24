@@ -1,0 +1,15 @@
+knowledge:
+  id: docker_beta
+  name: Docker Beta Example
+storage:
+  qdrant_url: http://qdrant:6333
+  collection: kb_docker_beta
+  data_directory: /data/ariadne/docker-beta
+server:
+  transport: http
+  host: 0.0.0.0
+  port: 8766
+sources:
+  documents:
+    - path: /workspace/beta/documents
+      type: documents

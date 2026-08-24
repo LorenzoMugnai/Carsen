@@ -1,0 +1,11 @@
+knowledge:
+  id: minimal
+  name: Minimal Example
+storage:
+  qdrant_url: http://qdrant:6333
+  collection: kb_minimal
+  data_directory: /data/ariadne/minimal
+server:
+  transport: http
+  host: 127.0.0.1
+  port: 8765
