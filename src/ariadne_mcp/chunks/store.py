@@ -26,3 +26,14 @@ class ChunkStore:
     def delete_file_chunks(self, source_path: str) -> None:
         digest = __import__("hashlib").sha256(source_path.encode("utf-8")).hexdigest()
         (self.directory / f"{digest}.jsonl").unlink(missing_ok=True)
+
+    def load_all_chunks(self) -> list[Chunk]:
+        """Load all persisted chunks for sparse retrieval or maintenance."""
+
+        chunks: list[Chunk] = []
+        for path in sorted(self.directory.glob("*.jsonl")):
+            with path.open("r", encoding="utf-8") as handle:
+                for line in handle:
+                    if line.strip():
+                        chunks.append(Chunk.from_dict(json.loads(line)))
+        return chunks
