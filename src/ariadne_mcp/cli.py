@@ -112,11 +112,17 @@ def serve(
     config: Annotated[Path | None, typer.Option("--config", help="Explicit YAML configuration to serve.")] = None,
     transport: Annotated[str | None, typer.Option(help="Override configured transport: stdio or http.")] = None,
 ) -> None:
-    """Serve one knowledge MCP instance; currently a Milestone 1 stub."""
+    """Serve one knowledge MCP instance."""
 
     if transport is not None and transport not in {"stdio", "http"}:
         raise typer.BadParameter("transport must be 'stdio' or 'http'")
-    _runtime_stub("Serve", name, config)
+    from .mcp.server import MCPUnavailableError, run_mcp_server
+
+    cfg = _resolve_config(name, config)
+    try:
+        run_mcp_server(cfg, transport=transport)
+    except MCPUnavailableError as exc:
+        raise typer.BadParameter(str(exc)) from exc
 
 
 @app.command()
