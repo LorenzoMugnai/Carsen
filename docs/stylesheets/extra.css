@@ -1,0 +1,134 @@
+.md-typeset .carsen-hero {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(220px, 0.8fr);
+  gap: clamp(1.5rem, 3vw, 3rem);
+  align-items: center;
+  margin: 1rem 0 2.25rem;
+  padding: clamp(1.5rem, 3vw, 2.5rem);
+  border: 1px solid var(--md-default-fg-color--lightest);
+  border-radius: 1.5rem;
+  background:
+    radial-gradient(circle at top left, rgba(124, 58, 237, 0.16), transparent 38%),
+    radial-gradient(circle at bottom right, rgba(20, 184, 166, 0.16), transparent 34%),
+    linear-gradient(135deg, color-mix(in srgb, var(--md-default-bg-color) 92%, var(--md-primary-fg-color) 8%), var(--md-default-bg-color));
+  box-shadow: 0 1.25rem 3rem rgba(15, 23, 42, 0.08);
+  overflow: hidden;
+}
+
+.md-typeset .carsen-hero::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: linear-gradient(120deg, transparent 0 48%, rgba(255, 255, 255, 0.18) 50%, transparent 52% 100%);
+  opacity: 0.35;
+  transform: translateX(-18%);
+}
+
+.md-typeset .carsen-hero__copy,
+.md-typeset .carsen-hero__art {
+  position: relative;
+  z-index: 1;
+}
+
+.md-typeset .carsen-kicker {
+  margin: 0 0 0.75rem;
+  color: var(--md-primary-fg-color);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.md-typeset .carsen-wordmark {
+  display: block;
+  width: min(15rem, 100%);
+  margin: 0 0 1rem;
+}
+
+.md-typeset .carsen-hero p {
+  max-width: 42rem;
+  font-size: 1.05rem;
+  line-height: 1.7;
+}
+
+.md-typeset .carsen-hero__logo {
+  display: block;
+  width: min(22rem, 100%);
+  margin-inline: auto;
+  filter: drop-shadow(0 1rem 2rem rgba(15, 23, 42, 0.14));
+}
+
+.md-typeset .carsen-cta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+}
+
+.md-typeset .carsen-cta-row > p {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin: 0;
+}
+
+.md-typeset .carsen-cta-row > p .md-button {
+  margin: 0;
+}
+
+.md-typeset .carsen-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+  margin: 1.5rem 0 2rem;
+}
+
+.md-typeset .carsen-card {
+  height: 100%;
+  padding: 1.1rem 1.1rem 1rem;
+  border: 1px solid var(--md-default-fg-color--lightest);
+  border-radius: 1rem;
+  background: var(--md-default-bg-color);
+  box-shadow: 0 0.4rem 1.2rem rgba(15, 23, 42, 0.05);
+  transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
+}
+
+.md-typeset .carsen-card:hover {
+  transform: translateY(-0.15rem);
+  border-color: color-mix(in srgb, var(--md-primary-fg-color) 30%, var(--md-default-fg-color--lightest));
+  box-shadow: 0 0.7rem 1.8rem rgba(15, 23, 42, 0.1);
+}
+
+.md-typeset .carsen-card h3 {
+  margin-top: 0;
+  margin-bottom: 0.5rem;
+}
+
+.md-typeset .carsen-card p {
+  margin-bottom: 0;
+}
+
+.md-typeset .carsen-flow {
+  margin: 1rem 0 2rem;
+  padding: 1.2rem 1.25rem;
+  border-left: 0.22rem solid var(--md-primary-fg-color);
+  border-radius: 0 1rem 1rem 0;
+  background: linear-gradient(90deg, rgba(124, 58, 237, 0.06), transparent 70%);
+}
+
+.md-typeset .carsen-flow ol {
+  margin: 0;
+}
+
+@media screen and (max-width: 760px) {
+  .md-typeset .carsen-hero {
+    grid-template-columns: 1fr;
+    padding: 1.25rem;
+  }
+
+  .md-typeset .carsen-hero__logo {
+    width: min(16rem, 72vw);
+  }
+}

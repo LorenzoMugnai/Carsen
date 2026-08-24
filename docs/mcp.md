@@ -1,5 +1,7 @@
 # MCP
 
+If you are trying to connect Carsen to an LLM client for the first time, start with [Connect Carsen to an LLM](llm-integration.md). This page is the lower-level MCP server reference.
+
 Carsen exposes one MCP server per knowledge instance.
 
 ## Serving

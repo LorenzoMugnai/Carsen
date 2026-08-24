@@ -8,7 +8,13 @@ from typing import Annotated, Any
 import typer
 
 from .config import CarsenConfig, load_config
-from .registry import create_config, discover_configs, instance_metadata, list_configs
+from .registry import (
+    create_config,
+    create_self_docs_config,
+    discover_configs,
+    instance_metadata,
+    list_configs,
+)
 
 app = typer.Typer(help="Carsen Knowledge Engine: manage isolated knowledge MCP instances.")
 
@@ -46,6 +52,60 @@ def create(
     except FileExistsError as exc:
         raise typer.BadParameter(str(exc)) from exc
     typer.echo(f"Created configuration: {path}")
+
+
+@app.command("init-self")
+def init_docs(
+    name: Annotated[
+        str,
+        typer.Option(help="Knowledge instance identifier for the Carsen self-reference instance."),
+    ] = "carsen-self",
+    source: Annotated[
+        Path | None,
+        typer.Option(help="Carsen source checkout containing a docs/ directory."),
+    ] = None,
+    docs_path: Annotated[
+        Path | None,
+        typer.Option(help="Explicit Carsen documentation directory to include."),
+    ] = None,
+    index_after_create: Annotated[
+        bool,
+        typer.Option("--index", help="Run indexing after writing the configuration."),
+    ] = False,
+    force: Annotated[
+        bool,
+        typer.Option("--force", help="Replace an existing registry configuration."),
+    ] = False,
+) -> None:
+    """Create a local Carsen self-reference knowledge instance."""
+
+    try:
+        path = create_self_docs_config(
+            name=name,
+            source=source,
+            docs_path=docs_path,
+            overwrite=force,
+        )
+    except FileNotFoundError as exc:
+        typer.echo(str(exc))
+        raise typer.Exit(1) from exc
+    except FileExistsError as exc:
+        raise typer.BadParameter(str(exc)) from exc
+
+    typer.echo(f"Created Carsen self-reference configuration: {path}")
+    if index_after_create:
+        from .ingestion.indexer import index_config
+
+        cfg = load_config(path)
+        report = index_config(cfg)
+        typer.echo(
+            f"Indexed '{cfg.knowledge.id}': new={report.new} unchanged={report.unchanged} "
+            f"changed={report.changed} deleted={report.deleted} chunks={report.chunks}"
+        )
+    else:
+        typer.echo(f"Next: carsen index {name}")
+    typer.echo(f"Search: carsen search {name} \"How do I connect Carsen to an LLM?\"")
+    typer.echo(f"Serve: carsen serve {name} --transport stdio")
 
 
 @app.command("list")

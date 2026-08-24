@@ -5,18 +5,26 @@ repo_name: LorenzoMugnai/Carsen
 
 theme:
   name: material
-  logo: assets/logo.png
-  favicon: assets/logo.png
+  logo: assets/logo_character.png
+  favicon: assets/logo_character.png
   features:
     - navigation.sections
     - navigation.expand
     - navigation.top
+    - navigation.instant
+    - navigation.instant.prefetch
+    - navigation.tracking
+    - search.suggest
+    - search.highlight
     - content.code.copy
     - content.tabs.link
   palette:
     - scheme: default
       primary: deep purple
       accent: teal
+
+extra_css:
+  - stylesheets/extra.css
 
 markdown_extensions:
   - admonition
@@ -38,6 +46,7 @@ nav:
   - Home: index.md
   - Getting started:
       - Quickstart: quickstart.md
+      - Connect to an LLM: llm-integration.md
       - Academic users: academic-users.md
   - Core concepts:
       - Overview: concepts.md

@@ -5,16 +5,15 @@ MCP stands for Model Context Protocol. It is a standard way for AI tools to ask 
 ```mermaid
 sequenceDiagram
     participant User
-    participant Client as MCP-capable client
-    participant Carsen
-    participant Store as Local chunks and Qdrant
-
-    User->>Client: Ask a project question
-    Client->>Carsen: MCP tool call
-    Carsen->>Store: Search indexed sources
-    Store-->>Carsen: Matching chunks and metadata
-    Carsen-->>Client: Cited retrieval result
-    Client-->>User: Answer with context
+    participant Client as LLM client
+    participant Carsen as Carsen MCP server
+    participant Store as Carsen indexes
+    User->>Client: Ask a question
+    Client->>Carsen: Request relevant context through MCP
+    Carsen->>Store: Retrieve cited chunks
+    Store-->>Carsen: Context and metadata
+    Carsen-->>Client: Cited retrieval results
+    Client-->>User: Final answer grounded in retrieved context
 ```
 
 ## Why it helps

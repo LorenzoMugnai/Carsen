@@ -14,6 +14,7 @@ REQUIRED_DOCS = {
     "docs/retrieval.md",
     "docs/citations.md",
     "docs/mcp.md",
+    "docs/llm-integration.md",
     "docs/deployment.md",
     "docs/security.md",
     "docs/development.md",
@@ -80,3 +81,85 @@ def test_didactic_documentation_includes_diagrams() -> None:
     for path in diagram_pages:
         text = path.read_text(encoding="utf-8")
         assert "```mermaid" in text, f"Missing Mermaid diagram in {path}"
+
+
+def test_llm_integration_and_init_self_are_documented() -> None:
+    llm = (ROOT / "docs" / "llm-integration.md").read_text(encoding="utf-8")
+    quickstart = (ROOT / "docs" / "quickstart.md").read_text(encoding="utf-8")
+    cli = (ROOT / "docs" / "cli-reference.md").read_text(encoding="utf-8")
+    mkdocs = (ROOT / "mkdocs.yml").read_text(encoding="utf-8")
+
+    for text in [llm, quickstart, cli]:
+        assert "carsen init-self" in text
+        assert "carsen-self" in text
+        assert "LLM" in text
+        assert "MCP" in text
+    assert "llm-integration.md" in mkdocs
+
+
+def test_cli_reference_init_self_documents_checkout_root_source() -> None:
+    text = (ROOT / "docs" / "cli-reference.md").read_text(encoding="utf-8")
+
+    assert "--source ./src/carsen_mcp" not in text
+    assert "carsen init-self --docs-path ./docs --source . --name carsen-self" in text
+    assert "Carsen checkout root" in text
+    assert "PATH/src/carsen_mcp" in text
+
+
+def test_llm_integration_documents_retrieval_not_generation_framing() -> None:
+    text = (ROOT / "docs" / "llm-integration.md").read_text(encoding="utf-8")
+
+    assert "Carsen is not an LLM" in text
+    assert "retrieves cited context" in text
+    assert "LLM remains replaceable" in text
+    assert "local-first" in text
+    assert (
+        "does not require a specific LLM provider" in text
+        or "without making Carsen depend on any provider" in text
+    )
+
+
+def test_beginner_llm_docs_use_english_and_current_project_names() -> None:
+    required_phrases_by_page = {
+        ROOT / "docs" / "llm-integration.md": [
+            "Carsen is not an LLM",
+            "retrieves cited context",
+            "LLM client",
+            "local-first",
+            "MCP",
+            "provider",
+        ],
+        ROOT / "docs" / "quickstart.md": [
+            "Carsen",
+            "retrieves cited context",
+            "LLM client",
+            "local-first",
+            "MCP",
+            "provider",
+        ],
+        ROOT / "docs" / "cli-reference.md": [
+            "Carsen",
+            "carsen init-self",
+            "carsen-self",
+            "MCP",
+        ],
+    }
+    stale_names = ["Ariadne", "ariadne", "ariadne_mcp"]
+
+    for path, required_phrases in required_phrases_by_page.items():
+        text = path.read_text(encoding="utf-8")
+        for phrase in required_phrases:
+            assert phrase in text, f"Missing required English phrase {phrase!r} in {path}"
+        for stale_name in stale_names:
+            assert stale_name not in text, f"Stale project name {stale_name!r} in {path}"
+
+
+def test_mkdocs_uses_brand_assets_and_custom_stylesheet() -> None:
+    text = (ROOT / "mkdocs.yml").read_text(encoding="utf-8")
+    assert "logo: assets/logo_character.png" in text
+    assert "favicon: assets/logo_character.png" in text
+    assert "stylesheets/extra.css" in text
+    assert (ROOT / "docs" / "assets" / "logo.png").exists()
+    assert (ROOT / "docs" / "assets" / "logo_character.png").exists()
+    assert (ROOT / "docs" / "assets" / "logo_text.png").exists()
+    assert (ROOT / "docs" / "stylesheets" / "extra.css").exists()

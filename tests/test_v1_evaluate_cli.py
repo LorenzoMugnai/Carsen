@@ -38,6 +38,13 @@ def test_cli_reference_documents_key_commands() -> None:
     text = (Path(__file__).resolve().parents[1] / "docs" / "cli-reference.md").read_text(encoding="utf-8")
     for command in ["carsen search", "carsen evaluate", "carsen serve-all", "carsen index", "carsen delete-index"]:
         assert command in text
+    section_heading = "## `carsen init-self`"
+    assert section_heading in text
+    section_start = text.index(section_heading)
+    next_section_start = text.find("\n## `", section_start + len(section_heading))
+    init_self_section = text[section_start:] if next_section_start == -1 else text[section_start:next_section_start]
+    for option in ["--docs-path", "--source", "--name", "--index", "--force"]:
+        assert option in init_self_section
 
 
 def test_testing_docs_mentions_optional_smoke_marker() -> None:

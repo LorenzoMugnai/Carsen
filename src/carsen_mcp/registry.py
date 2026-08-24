@@ -45,6 +45,42 @@ def create_config(
     return target
 
 
+def create_self_docs_config(
+    name: str = "carsen-self",
+    source: Path | None = None,
+    docs_path: Path | None = None,
+    overwrite: bool = False,
+    base_dir: Path | None = None,
+) -> Path:
+    """Create a registry configuration for Carsen's own docs and source."""
+
+    source_root = (source or Path.cwd()).expanduser().resolve()
+    docs_root = docs_path.expanduser().resolve() if docs_path is not None else source_root / "docs"
+    if not docs_root.exists() or not docs_root.is_dir():
+        raise FileNotFoundError(
+            f"Could not find Carsen documentation directory for self-reference at {docs_root}. Run this command from a Carsen source checkout "
+            "or pass --docs-path PATH."
+        )
+
+    cfg = default_config(name)
+    cfg.knowledge.name = "Carsen self-reference"
+    cfg.knowledge.description = (
+        "Carsen documentation and source package, indexed as an isolated self-reference knowledge instance for MCP-assisted setup "
+        "help."
+    )
+    cfg.sources.documents = [SourcePathConfig(path=docs_root)]
+
+    package_root = source_root / "src" / "carsen_mcp"
+    cfg.sources.code = [SourcePathConfig(path=package_root)] if package_root.exists() and package_root.is_dir() else []
+
+    target = config_path_for(cfg.name, base_dir)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    if target.exists() and not overwrite:
+        raise FileExistsError(f"configuration '{name}' already exists; use --force to replace it")
+    target.write_text(dump_config(cfg), encoding="utf-8")
+    return target
+
+
 def discover_configs(explicit: Path | None = None, base_dir: Path | None = None) -> list[Path]:
     """Discover registry configurations and include an explicit path if supplied."""
 

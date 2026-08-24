@@ -1,87 +1,120 @@
-# Quickstart for academic users
+# Quickstart
 
-Carsen turns a collection of code, papers, notes or documentation into a searchable knowledge service for MCP-capable tools. You can think of it as a local research librarian: first it reads and indexes your material, then it helps your AI tools retrieve the relevant passages with citations.
+This guide takes you from a clean installation to a Carsen knowledge instance that an LLM-capable MCP client can use.
+
+## What you are setting up
+
+Carsen is not an LLM and does not write final answers. Carsen indexes your material, retrieves cited context, and serves that context to clients through MCP. Your LLM client remains responsible for the final response. Carsen is local-first by default and provider-neutral: you choose the LLM client and provider.
 
 ```mermaid
 flowchart LR
-    A[Research code and documents] --> B[Carsen indexing]
-    B --> C[Chunks with metadata]
-    C --> D[Local chunk store]
-    C --> E[Qdrant vector index]
-    F[MCP client or CLI query] --> G[Carsen retrieval]
-    D --> G
-    E --> G
-    G --> H[Cited context for the user or LLM]
+    A[Terminal: create and index sources] --> B[Carsen knowledge instance]
+    B --> C[Local chunk store and indexes]
+    D[Terminal: carsen serve over MCP] --> B
+    E[LLM client] -->|MCP request| D
+    D -->|retrieves cited context| C
+    D -->|cited results| E
+    E --> F[Grounded final answer]
 ```
 
-## What you will build
+## 1. Install Carsen
 
-In this quickstart you will create one Carsen knowledge instance, index a small project, run a search and optionally serve the instance over MCP.
-
-## Prerequisites
-
-- Python 3.12 or newer.
-- `uv` for Python environment management.
-- Docker if you want dense vector search with Qdrant.
-
-## 1. Install Carsen for development
+Use Python 3.12 or newer. In a development checkout, install Carsen with:
 
 ```bash
 uv pip install -e '.[dev]'
 carsen --help
 ```
 
-## 2. Start Qdrant
+## 2. Create your first knowledge instance
 
-Qdrant is the local vector database Carsen uses for dense semantic search. If you are just experimenting with local chunks, you can skip Qdrant at first. If you want semantic search, start it with Docker:
-
-```bash
-docker run --rm -p 6333:6333 -p 6334:6334 qdrant/qdrant
-```
-
-## 3. Create a knowledge instance
+Create an isolated instance for your project sources:
 
 ```bash
-carsen create my-lab-notes --code ./src --documents ./docs
-carsen validate my-lab-notes
+carsen create my-project --code ./src --documents ./docs
+carsen validate my-project
 ```
 
-## 4. Index your sources
+Each named instance has its own configuration, local state and indexes.
+
+## 3. Index your sources
+
+Parse your files into canonical chunks:
 
 ```bash
-carsen index my-lab-notes
+carsen index my-project
 ```
 
-To also create embeddings in Qdrant:
+If you have Qdrant and an embedding provider configured, add dense embeddings:
 
 ```bash
-carsen index my-lab-notes --embed
+carsen index my-project --embed
 ```
 
-## 5. Search locally
+## 4. Test retrieval before using an LLM
+
+Check that Carsen can retrieve useful context before connecting an LLM client:
 
 ```bash
-carsen search my-lab-notes "How is retrieval configured?" --debug
+carsen search my-project "How is retrieval configured?" --debug
 ```
 
-The result should include source paths and citation metadata so you can trace answers back to the original material.
+Look for source paths, snippets and citation metadata in the results.
 
-## 6. Serve over MCP
+## 5. Serve the instance over MCP
+
+Start the MCP server for local stdio clients:
 
 ```bash
-carsen serve my-lab-notes --transport stdio
+carsen serve my-project --transport stdio
 ```
 
-For HTTP clients:
+For local HTTP clients, use:
 
 ```bash
-carsen serve my-lab-notes --transport http
+carsen serve my-project --transport http
 ```
 
-The MCP endpoint is `/mcp`.
+HTTP serves MCP at `/mcp`. Keep it bound to localhost unless you have reviewed the security implications.
 
-## Next steps
+## 6. Add Carsen to an LLM client
 
-- Read [Core concepts](concepts.md) if Qdrant, embeddings or MCP are new to you.
-- Read [Configuration](configuration.md) to adapt Carsen to your project.
-- Read [Security](security.md) before exposing any service outside your machine.
+Add a Carsen MCP server entry to your MCP-capable desktop app, editor or agent tool. A typical stdio entry looks like:
+
+```json
+{
+  "mcpServers": {
+    "carsen-my-project": {
+      "command": "carsen",
+      "args": ["serve", "my-project", "--transport", "stdio"]
+    }
+  }
+}
+```
+
+See [Connect Carsen to an LLM](llm-integration.md) for provider-neutral setup notes.
+
+## 7. Ask your first grounded question
+
+In your LLM client, ask a question that should be answered from your indexed project, such as:
+
+> Use Carsen to find where retrieval is configured and cite the relevant files.
+
+The client asks Carsen for context through MCP, then the LLM writes the final answer using the retrieved citations.
+
+## Optional: create a Carsen self-reference instance
+
+To use Carsen for help with Carsen itself, create the default `carsen-self` instance. It indexes the Carsen documentation plus the source package, so it is useful for self-help across docs and source code:
+
+```bash
+carsen init-self
+carsen index carsen-self
+```
+
+Or create and index it in one step:
+
+```bash
+carsen init-self --index
+```
+
+You can customize the instance name, docs path and source path with `--name`, `--docs-path` and `--source`.
