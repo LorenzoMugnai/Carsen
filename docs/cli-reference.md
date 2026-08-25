@@ -12,6 +12,7 @@ This semi-generated reference mirrors the current Typer command surface used by 
 ## Index and retrieval
 
 - `carsen index NAME [--force] [--embed]` parses sources into canonical chunks, optionally embedding into Qdrant.
+- `carsen watch NAME` watches configured sources and indexes after debounced filesystem changes.
 - `carsen search NAME QUERY` searches a local instance chunk store.
 - `carsen search --config PATH QUERY` searches an explicit configuration.
 - Search options: `--corpus all|code|documents`, `--limit N`, `--debug`.
@@ -20,7 +21,7 @@ This semi-generated reference mirrors the current Typer command surface used by 
 
 ## Runtime and lifecycle
 
-- `carsen serve NAME` starts one MCP instance over configured or overridden transport.
+- `carsen serve NAME [--watch|--no-watch]` starts one MCP instance over configured or overridden transport, optionally running watch indexing in the background.
 - `carsen serve-all [NAMES...]` starts multiple instances under an external supervisor pattern.
 - `carsen stop NAME` reports the external-supervisor stop guidance.
 - `carsen reembed NAME` re-embeds existing canonical chunks.

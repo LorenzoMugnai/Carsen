@@ -32,6 +32,13 @@ retrieval:
   fusion: rrf
   max_results_per_source: 3
 
+indexing:
+  incremental: true
+  follow_symlinks: false
+  watch: false
+  watch_debounce_seconds: 10.0
+  watch_embed: false
+
 parsing:
   documents:
     ocr: false

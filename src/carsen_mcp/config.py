@@ -99,6 +99,9 @@ class IndexingConfig(BaseModel):
 
     incremental: bool = True
     follow_symlinks: bool = False
+    watch: bool = False
+    watch_debounce_seconds: float = Field(default=10.0, gt=0)
+    watch_embed: bool = False
     ignored_directories: list[str] = Field(
         default_factory=lambda: [
             ".git",

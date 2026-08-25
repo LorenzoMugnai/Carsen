@@ -36,6 +36,9 @@ retrieval:
 indexing:
   incremental: true
   follow_symlinks: false
+  watch: false
+  watch_debounce_seconds: 10.0
+  watch_embed: false
 parsing:
   documents:
     ocr: false
@@ -55,6 +58,7 @@ policy:
 - `storage.collection` defaults to `kb_<knowledge_id>`. `storage.data_directory` defaults under `~/.local/share/carsen/<id>`.
 - Environment variables and `~` are expanded in YAML values. Relative paths are resolved against the YAML file location.
 - `retrieval.fusion` currently accepts only `rrf`.
+- `indexing.watch` enables foreground/background filesystem watch indexing. `watch_debounce_seconds` coalesces rapid file events, and `watch_embed` also refreshes dense vectors after watched changes.
 - `parsing.documents` controls optional Docling document parsing. PDF parsing defaults to fast text extraction: OCR and table structure are disabled, and backend text is preferred.
 - `sources.code` and `sources.documents` contain entries with `path`, optional `repository_name`, optional `type` and optional `tags`.
 - `policy.allow_external_llm` is metadata for clients; it is not an enforcement boundary.

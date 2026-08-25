@@ -7,6 +7,7 @@ carsen index NAME
 carsen index --config path/to/config.yaml
 carsen index NAME --force
 carsen index NAME --embed
+carsen watch NAME
 ```
 
 The indexer discovers files under configured `sources.code` and `sources.documents`, computes file records, classifies files as new, unchanged, changed or deleted, then reparses only the required files unless `--force` is used.
@@ -33,6 +34,10 @@ This flow is similar to building a catalogue for a research archive. Carsen firs
 ## Discovery
 
 Defaults ignore common generated or dependency directories such as `.git`, `.venv`, `node_modules`, `__pycache__`, `build` and `dist`. Binary extension ignores include `.pyc`, `.so`, `.dll` and `.dylib`. Symlink following is disabled by default.
+
+## Watch indexing
+
+Set `indexing.watch: true` to enable automatic indexing while serving, or run `carsen watch NAME` as a foreground watcher. File events are debounced by `indexing.watch_debounce_seconds` and coalesced into a single index pass. Set `indexing.watch_embed: true` to also refresh dense vectors after watched changes.
 
 ## Canonical chunks
 

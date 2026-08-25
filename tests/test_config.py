@@ -40,6 +40,14 @@ def test_default_document_parsing_is_fast_pdf_mode() -> None:
     assert cfg.parsing.documents.force_backend_text is True
 
 
+def test_default_watch_indexing_options() -> None:
+    cfg = CarsenConfig(knowledge=KnowledgeConfig(id="watch"))
+
+    assert cfg.indexing.watch is False
+    assert cfg.indexing.watch_debounce_seconds == 10.0
+    assert cfg.indexing.watch_embed is False
+
+
 def test_document_parsing_options_load_from_yaml(tmp_path: Path) -> None:
     path = write_config(
         tmp_path / "parse.yaml",
@@ -68,6 +76,7 @@ parsing:
         "knowledge:\n  id: bad/name\n",
         "knowledge:\n  id: bad\nserver:\n  transport: tcp\n",
         "knowledge:\n  id: bad\nretrieval:\n  fusion: weighted\n",
+        "knowledge:\n  id: bad\nindexing:\n  watch_debounce_seconds: 0\n",
     ],
 )
 def test_invalid_ports_settings(tmp_path: Path, body: str) -> None:

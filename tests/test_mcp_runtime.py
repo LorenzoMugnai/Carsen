@@ -97,3 +97,55 @@ def test_cli_serve_transport_selection(monkeypatch: pytest.MonkeyPatch, tmp_path
     assert called == {"knowledge_id": "alpha", "transport": "stdio"}
     assert "Serving Carsen instance 'alpha'" in result.output
     assert "via stdio" in result.output
+
+
+def test_cli_serve_watch_override_starts_watcher(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    config_path = tmp_path / "config.yaml"
+    data_dir = tmp_path / "data"
+    config_path.write_text(
+        f"knowledge:\n  id: alpha\nstorage:\n  data_directory: {data_dir}\nindexing:\n  watch: false\n",
+        encoding="utf-8",
+    )
+    calls: dict[str, object] = {}
+
+    class FakeStopEvent:
+        def set(self) -> None:
+            calls["stopped"] = True
+
+    def fake_start_watch_thread(config: CarsenConfig, log=None):
+        calls["watched"] = config.knowledge.id
+        if log is not None:
+            log("watch started")
+        return object(), FakeStopEvent()
+
+    def fake_run(config: CarsenConfig, transport: str | None = None) -> None:
+        calls["served"] = config.knowledge.id
+
+    monkeypatch.setattr("carsen_mcp.ingestion.watcher.start_watch_thread", fake_start_watch_thread)
+    monkeypatch.setattr("carsen_mcp.mcp.server.run_mcp_server", fake_run)
+
+    result = CliRunner().invoke(app, ["serve", "--config", str(config_path), "--watch"])
+
+    assert result.exit_code == 0, result.output
+    assert calls == {"watched": "alpha", "served": "alpha", "stopped": True}
+    assert "watch started" in result.output
+
+
+def test_cli_watch_command_calls_watcher(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    config_path = tmp_path / "config.yaml"
+    data_dir = tmp_path / "data"
+    config_path.write_text(f"knowledge:\n  id: alpha\nstorage:\n  data_directory: {data_dir}\n", encoding="utf-8")
+    calls = {}
+
+    def fake_watch_config(config: CarsenConfig, log=None) -> None:
+        calls["knowledge_id"] = config.knowledge.id
+        if log is not None:
+            log("watching")
+
+    monkeypatch.setattr("carsen_mcp.ingestion.watcher.watch_config", fake_watch_config)
+
+    result = CliRunner().invoke(app, ["watch", "--config", str(config_path)])
+
+    assert result.exit_code == 0, result.output
+    assert calls == {"knowledge_id": "alpha"}
+    assert "watching" in result.output

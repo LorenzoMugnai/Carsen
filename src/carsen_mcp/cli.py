@@ -377,10 +377,27 @@ def index(
 
 
 @app.command()
+def watch(
+    name: Annotated[str | None, typer.Argument(help="Registered knowledge instance to watch and index.")] = None,
+    config: Annotated[Path | None, typer.Option("--config", help="Explicit YAML configuration to watch.")] = None,
+) -> None:
+    """Watch configured sources and index after filesystem changes."""
+
+    from .ingestion.watcher import watch_config
+
+    cfg = _resolve_config(name, config)
+    watch_config(cfg, log=lambda message: typer.echo(message, err=True))
+
+
+@app.command()
 def serve(
     name: Annotated[str | None, typer.Argument(help="Registered knowledge instance to serve.")] = None,
     config: Annotated[Path | None, typer.Option("--config", help="Explicit YAML configuration to serve.")] = None,
     transport: Annotated[str | None, typer.Option(help="Override configured transport: stdio or http.")] = None,
+    watch_sources: Annotated[
+        bool | None,
+        typer.Option("--watch/--no-watch", help="Override indexing.watch while serving."),
+    ] = None,
 ) -> None:
     """Serve one knowledge MCP instance."""
 
@@ -390,11 +407,20 @@ def serve(
 
     cfg = _resolve_config(name, config)
     selected_transport = transport or cfg.server.transport
+    effective_watch = cfg.indexing.watch if watch_sources is None else watch_sources
+    stop_event = None
+    if effective_watch:
+        from .ingestion.watcher import start_watch_thread
+
+        _thread, stop_event = start_watch_thread(cfg, log=lambda message: typer.echo(message, err=True))
     typer.echo(f"Serving Carsen instance '{cfg.knowledge.id}' ({cfg.knowledge.name}) via {selected_transport}...", err=True)
     try:
         run_mcp_server(cfg, transport=transport)
     except MCPUnavailableError as exc:
         raise typer.BadParameter(str(exc)) from exc
+    finally:
+        if stop_event is not None:
+            stop_event.set()
 
 
 @app.command("serve-all")

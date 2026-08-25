@@ -15,6 +15,7 @@ dependencies = [
   "typer>=0.12",
   "docling>=2.0",
   "sentence-transformers>=3.0",
+  "watchfiles>=0.24",
 ]
 
 [project.optional-dependencies]
