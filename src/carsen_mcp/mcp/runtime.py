@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import sys
 from dataclasses import asdict
 from pathlib import Path
 from typing import Any, cast
@@ -40,20 +41,24 @@ class InstanceRuntime:
         return [chunk for chunk in self.store.load_all_chunks() if chunk.knowledge_id == self.config.knowledge.id]
 
     def knowledge_info(self) -> dict[str, Any]:
+        self._log_tool_call("knowledge_info")
         chunks = self.chunks
         sources = {chunk.source_path for chunk in chunks}
         return {"knowledge_id": self.config.knowledge.id, "name": self.config.knowledge.name, "description": self.config.knowledge.description, "chunk_count": len(chunks), "source_count": len(sources)}
 
     def search_knowledge(self, query: str, limit: int = 8, filters: dict[str, Any] | None = None) -> list[dict[str, Any]]:
+        self._log_tool_call("search_knowledge", limit=limit, filters=filters)
         return [self._serialise_result(result) for result in self._search(query, limit, filters)]
 
     def search_debug(self, query: str, limit: int = 8, filters: dict[str, Any] | None = None) -> dict[str, Any]:
         """Return search results plus redacted retrieval diagnostics."""
 
+        self._log_tool_call("search_debug", limit=limit, filters=filters)
         results, diagnostics = self._search_with_debug(query, limit, filters)
         return {"results": [self._serialise_result(result) for result in results], "diagnostics": diagnostics}
 
     def search_code(self, query: str, limit: int = 8, filters: dict[str, Any] | None = None) -> list[dict[str, Any]]:
+        self._log_tool_call("search_code", limit=limit, filters=filters)
         merged = {**(filters or {}), "source_type": "code"}
         results = self._sparse(None).search(query, limit=limit, filters=cast(dict[str, object], merged))
         if not results:
@@ -63,14 +68,17 @@ class InstanceRuntime:
         return [self._serialise_result(result) for result in results]
 
     def search_documents(self, query: str, limit: int = 8, filters: dict[str, Any] | None = None) -> list[dict[str, Any]]:
+        self._log_tool_call("search_documents", limit=limit, filters=filters)
         merged = {**(filters or {}), "source_type": "documents"}
         return [self._serialise_result(result) for result in self._sparse(None).search(query, limit=limit, filters=cast(dict[str, object], merged))]
 
     def find_symbol(self, symbol: str, limit: int = 8) -> list[dict[str, Any]]:
+        self._log_tool_call("find_symbol", limit=limit)
         results = lookup_symbol([self._chunk_to_result(chunk) for chunk in self.chunks], symbol)[:limit]
         return [self._serialise_result(result) for result in results]
 
     def read_source(self, source_id: str | None = None, chunk_id: str | None = None, previous: int = 0, next: int = 0) -> dict[str, Any]:
+        self._log_tool_call("read_source", has_source_id=source_id is not None, has_chunk_id=chunk_id is not None, previous=previous, next=next)
         target = self._find_chunk(source_id=source_id, chunk_id=chunk_id)
         if target is None:
             return {"found": False, "source_id": source_id, "chunk_id": chunk_id}
@@ -78,18 +86,31 @@ class InstanceRuntime:
         return {"found": True, "chunk": self._serialise_chunk(target, include_text=True), "chunks": [self._serialise_chunk(cast(Chunk, chunk), include_text=True) for chunk in expanded]}
 
     def get_source_metadata(self, source_id: str | None = None, chunk_id: str | None = None) -> dict[str, Any]:
+        self._log_tool_call("get_source_metadata", has_source_id=source_id is not None, has_chunk_id=chunk_id is not None)
         target = self._find_chunk(source_id=source_id, chunk_id=chunk_id)
         if target is None:
             return {"found": False, "source_id": source_id, "chunk_id": chunk_id}
         return {"found": True, "metadata": self._serialise_chunk(target, include_text=False)}
 
     def get_related_sources(self, source_id: str | None = None, chunk_id: str | None = None, limit: int = 5) -> list[dict[str, Any]]:
+        self._log_tool_call("get_related_sources", has_source_id=source_id is not None, has_chunk_id=chunk_id is not None, limit=limit)
         target = self._find_chunk(source_id=source_id, chunk_id=chunk_id)
         if target is None:
             return []
         query = " ".join(part for part in [target.symbol, target.metadata.get("heading"), target.text[:200]] if part)
         results = [result for result in self._sparse(None).search(query, limit=limit + 1) if result.chunk_id != target.chunk_id]
         return [self._serialise_result(result) for result in results[:limit]]
+
+    def _log_tool_call(self, tool_name: str, **metadata: Any) -> None:
+        safe_parts = [f"instance={self.config.knowledge.id}", f"tool={tool_name}"]
+        if "filters" in metadata:
+            filters = metadata.pop("filters")
+            if isinstance(filters, dict):
+                metadata["filter_keys"] = sorted(str(key) for key in filters)
+            else:
+                metadata["filter_keys"] = []
+        safe_parts.extend(f"{key}={value}" for key, value in metadata.items())
+        print("Carsen MCP tool call: " + " ".join(safe_parts), file=sys.stderr, flush=True)
 
     def _sparse(self, filters: dict[str, Any] | None) -> SparseRetriever:
         chunks = self.chunks

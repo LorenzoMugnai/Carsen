@@ -273,6 +273,8 @@ def serve(
     from .mcp.server import MCPUnavailableError, run_mcp_server
 
     cfg = _resolve_config(name, config)
+    selected_transport = transport or cfg.server.transport
+    typer.echo(f"Serving Carsen instance '{cfg.knowledge.id}' ({cfg.knowledge.name}) via {selected_transport}...", err=True)
     try:
         run_mcp_server(cfg, transport=transport)
     except MCPUnavailableError as exc:
@@ -294,7 +296,11 @@ def serve_all(
     if not configs:
         typer.echo("No Carsen configurations found.")
         return
+    if not names:
+        typer.echo(f"Serving all registered Carsen configurations ({len(configs)} found).", err=True)
     for cfg in configs:
+        selected_transport = transport or cfg.server.transport
+        typer.echo(f"Starting Carsen instance '{cfg.knowledge.id}' ({cfg.knowledge.name}) via {selected_transport}...", err=True)
         try:
             run_mcp_server(cfg, transport=transport)
         except MCPUnavailableError as exc:

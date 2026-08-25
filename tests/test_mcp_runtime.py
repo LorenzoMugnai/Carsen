@@ -32,7 +32,7 @@ def populate(config: CarsenConfig, chunks: list[Chunk]) -> None:
         store.replace_file_chunks(source_path, items)
 
 
-def test_runtime_knowledge_info_searches_and_symbol(tmp_path: Path) -> None:
+def test_runtime_knowledge_info_searches_and_symbol(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     config = cfg(tmp_path, "alpha")
     detector = chunk("alpha", "src/detector.py", "Detector.process", "def process detection", 0, source_type="code", language="python", kind="method")
     guide = chunk("alpha", "docs/guide.md", None, "process user guide", 0, source_type="documents", document_type="markdown", heading="Guide", kind="markdown")
@@ -43,6 +43,10 @@ def test_runtime_knowledge_info_searches_and_symbol(tmp_path: Path) -> None:
     assert runtime.search_code("process")[0]["metadata"]["source_path"] == "src/detector.py"
     assert runtime.search_documents("guide")[0]["metadata"]["source_path"] == "docs/guide.md"
     assert runtime.find_symbol("Detector.process")[0]["chunk_id"] == detector.chunk_id
+    stderr = capsys.readouterr().err
+    assert "instance=alpha tool=knowledge_info" in stderr
+    assert "instance=alpha tool=search_code limit=8" in stderr
+    assert "process user guide" not in stderr
 
 
 def test_runtime_read_source_expansion_and_metadata(tmp_path: Path) -> None:
@@ -91,3 +95,5 @@ def test_cli_serve_transport_selection(monkeypatch: pytest.MonkeyPatch, tmp_path
 
     assert result.exit_code == 0
     assert called == {"knowledge_id": "alpha", "transport": "stdio"}
+    assert "Serving Carsen instance 'alpha'" in result.output
+    assert "via stdio" in result.output
