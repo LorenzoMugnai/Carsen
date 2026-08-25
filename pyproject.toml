@@ -13,12 +13,12 @@ dependencies = [
   "mcp>=1.0",
   "PyYAML>=6.0",
   "typer>=0.12",
+  "docling>=2.0",
+  "sentence-transformers>=3.0",
 ]
 
 [project.optional-dependencies]
 test = ["pytest>=8.0"]
-documents = ["docling>=2.0"]
-embeddings = ["sentence-transformers>=3.0"]
 dev = [
   "mypy>=1.10",
   "pytest>=8.0",
