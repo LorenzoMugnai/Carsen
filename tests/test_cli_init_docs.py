@@ -62,3 +62,34 @@ def test_init_self_cli_index_flag_calls_indexer(tmp_path: Path, monkeypatch) -> 
     assert result.exit_code == 0, result.stdout
     assert called == {"knowledge_id": "carsen-self", "force": False, "embed": False}
     assert "Indexed 'carsen-self'" in result.stdout
+
+
+def test_index_cli_emits_progress_and_keeps_summary(tmp_path: Path) -> None:
+    src = tmp_path / "src"
+    src.mkdir()
+    (src / "a.py").write_text("def helper():\n    return 1\n", encoding="utf-8")
+    config = tmp_path / "carsen.yaml"
+    data = tmp_path / "data"
+    config.write_text(
+        f"""
+knowledge:
+  id: cli-kb
+storage:
+  data_directory: {data}
+sources:
+  code:
+    - path: {src}
+  documents: []
+""",
+        encoding="utf-8",
+    )
+
+    result = CliRunner().invoke(app, ["index", "--config", str(config)])
+
+    assert result.exit_code == 0, result.stdout
+    assert "Indexed 'cli-kb': new=1 unchanged=0 changed=0 deleted=0 chunks=" in result.stdout
+    assert "Discovered 1 file(s)." in result.stderr
+    assert "Fingerprinting 1 file(s) for incremental changes..." in result.stderr
+    assert "Fingerprinting complete: 1 file(s)" in result.stderr
+    assert "Classified files: new=1 unchanged=0 changed=0 deleted=0 to_parse=1" in result.stderr
+    assert "Deleted stale file entries: 0." in result.stderr

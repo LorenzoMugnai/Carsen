@@ -70,7 +70,48 @@ def test_indexer_persists_chunks_and_reports(tmp_path: Path) -> None:
     src = tmp_path / "src"
     src.mkdir()
     (src / "a.py").write_text("def helper():\n    return 1\n", encoding="utf-8")
-    cfg = CarsenConfig(knowledge=KnowledgeConfig(id="kb"), storage=StorageConfig(data_directory=tmp_path / "data"), sources=SourcesConfig(code=[SourcePathConfig(path=src)]))
+    cfg = CarsenConfig(
+        knowledge=KnowledgeConfig(id="kb"),
+        storage=StorageConfig(data_directory=tmp_path / "data"),
+        sources=SourcesConfig(code=[SourcePathConfig(path=src)]),
+    )
     report = index_config(cfg)
     assert report.new == 1 and report.chunks >= 2
     assert list((tmp_path / "data" / "chunks").glob("*.jsonl"))
+
+
+def test_indexer_reports_progress_without_changing_counts(tmp_path: Path) -> None:
+    src = tmp_path / "src"
+    src.mkdir()
+    (src / "a.py").write_text("def helper():\n    return 1\n", encoding="utf-8")
+    cfg = CarsenConfig(
+        knowledge=KnowledgeConfig(id="kb"),
+        storage=StorageConfig(data_directory=tmp_path / "data"),
+        sources=SourcesConfig(code=[SourcePathConfig(path=src)]),
+    )
+    events: list[tuple[str, dict[str, object]]] = []
+
+    report = index_config(
+        cfg,
+        progress=lambda event, payload: events.append((event, payload)),
+    )
+
+    assert report.new == 1
+    assert report.unchanged == 0
+    assert report.changed == 0
+    assert report.deleted == 0
+    assert report.chunks >= 2
+    assert [event for event, _ in events] == [
+        "discovered",
+        "fingerprint_start",
+        "file_fingerprinted",
+        "fingerprint_complete",
+        "classified",
+        "parse_start",
+        "file_parsed",
+        "parse_complete",
+        "deleted",
+    ]
+    assert events[0][1]["files"] == 1
+    assert events[4][1]["to_parse"] == 1
+    assert events[6][1]["chunk_total"] == report.chunks

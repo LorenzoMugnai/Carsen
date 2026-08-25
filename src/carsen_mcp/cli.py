@@ -3,9 +3,20 @@
 from __future__ import annotations
 
 from pathlib import Path
+from time import monotonic
+from types import TracebackType
 from typing import Annotated, Any
 
 import typer
+from rich.console import Console
+from rich.progress import (
+    BarColumn,
+    Progress,
+    TaskID,
+    TextColumn,
+    TimeElapsedColumn,
+    TimeRemainingColumn,
+)
 
 from .config import CarsenConfig, load_config
 from .registry import (
@@ -17,6 +28,95 @@ from .registry import (
 )
 
 app = typer.Typer(help="Carsen Knowledge Engine: manage isolated knowledge MCP instances.")
+
+
+class _IndexProgress:
+    def __init__(self) -> None:
+        self.console = Console(stderr=True)
+        self.started = monotonic()
+        self.fingerprint_task: TaskID | None = None
+        self.parse_task: TaskID | None = None
+        self._progress = Progress(
+            TextColumn("{task.description}"),
+            BarColumn(),
+            TextColumn("{task.completed}/{task.total}"),
+            TimeElapsedColumn(),
+            TimeRemainingColumn(),
+            console=self.console,
+            transient=False,
+        )
+
+    def __enter__(self) -> _IndexProgress:
+        self._progress.__enter__()
+        return self
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
+        traceback: TracebackType | None,
+    ) -> None:
+        self._progress.__exit__(exc_type, exc, traceback)
+
+    def __call__(self, event: str, payload: dict[str, Any]) -> None:
+        elapsed = monotonic() - self.started
+        if event == "discovered":
+            self.console.print(f"Discovered {payload['files']} file(s).")
+        elif event == "fingerprint_start":
+            self.console.print(f"Fingerprinting {payload['total']} file(s) for incremental changes...")
+            self.fingerprint_task = self._progress.add_task(
+                "Fingerprinting files",
+                total=payload["total"],
+            )
+        elif event == "file_fingerprinted" and self.fingerprint_task is not None:
+            path = Path(payload["path"])
+            self._progress.update(
+                self.fingerprint_task,
+                completed=payload["index"],
+                description=f"Fingerprinting files ({path.name})",
+            )
+            if payload["index"] == payload["total"] or payload["index"] % 100 == 0:
+                self.console.print(
+                    f"Fingerprinted {payload['index']}/{payload['total']} file(s); current={path.name}"
+                )
+        elif event == "fingerprint_complete":
+            self.console.print(f"Fingerprinting complete: {payload['total']} file(s) in {elapsed:.1f}s.")
+        elif event == "classified":
+            self.console.print(
+                "Classified files: "
+                f"new={payload['new']} unchanged={payload['unchanged']} changed={payload['changed']} "
+                f"deleted={payload['deleted']} to_parse={payload['to_parse']}"
+            )
+        elif event == "parse_start":
+            self.parse_task = self._progress.add_task(
+                "Parsing/writing files",
+                total=payload["total"],
+            )
+        elif event == "file_parsed" and self.parse_task is not None:
+            description = (
+                f"Parsing/writing files ({Path(payload['path']).name}, "
+                f"chunks={payload['chunk_total']})"
+            )
+            self._progress.update(
+                self.parse_task,
+                completed=payload["index"],
+                description=description,
+            )
+        elif event == "parse_complete":
+            self.console.print(
+                f"Parsed/wrote {payload['total']} file(s), chunks={payload['chunks']} "
+                f"in {elapsed:.1f}s."
+            )
+        elif event == "deleted":
+            self.console.print(f"Deleted stale file entries: {payload['files']}.")
+        elif event == "embed_start":
+            self.console.print(f"Embedding/upsert phase starting: chunks={payload['chunks']}.")
+        elif event == "embed_complete":
+            self.console.print(f"Embedding complete: chunks={payload['chunks']}.")
+        elif event == "upsert_start":
+            self.console.print(f"Upserting vectors: chunks={payload['chunks']}.")
+        elif event == "upsert_complete":
+            self.console.print(f"Vector upsert complete: chunks={payload['chunks']}.")
 
 
 def _preview(text: str, length: int = 120) -> str:
@@ -256,7 +356,8 @@ def index(
     from .ingestion.indexer import index_config
 
     cfg = _resolve_config(name, config)
-    report = index_config(cfg, force=force, embed=embed)
+    with _IndexProgress() as progress:
+        report = index_config(cfg, force=force, embed=embed, progress=progress)
     typer.echo(f"Indexed '{cfg.knowledge.id}': new={report.new} unchanged={report.unchanged} changed={report.changed} deleted={report.deleted} chunks={report.chunks}")
 
 
