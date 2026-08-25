@@ -35,6 +35,12 @@ def test_markdown_and_text_parser_basics(tmp_path: Path) -> None:
 def test_discovery_ignores_and_hashing(tmp_path: Path) -> None:
     (tmp_path / ".git").mkdir()
     (tmp_path / ".git" / "hidden.py").write_text("x", encoding="utf-8")
+    (tmp_path / ".pytest_cache").mkdir()
+    (tmp_path / ".pytest_cache" / "cached.py").write_text("x", encoding="utf-8")
+    (tmp_path / "site-packages").mkdir()
+    (tmp_path / "site-packages" / "installed.py").write_text("x", encoding="utf-8")
+    (tmp_path / "vendor").mkdir()
+    (tmp_path / "vendor" / "vendored.py").write_text("x", encoding="utf-8")
     (tmp_path / "keep.py").write_text("x", encoding="utf-8")
     (tmp_path / "skip.pyc").write_text("x", encoding="utf-8")
     cfg = CarsenConfig(knowledge=KnowledgeConfig(id="kb")).indexing
@@ -115,3 +121,38 @@ def test_indexer_reports_progress_without_changing_counts(tmp_path: Path) -> Non
     assert events[0][1]["files"] == 1
     assert events[4][1]["to_parse"] == 1
     assert events[6][1]["chunk_total"] == report.chunks
+
+
+def test_indexer_skips_failed_parse_and_retries_next_run(tmp_path: Path, monkeypatch) -> None:
+    src = tmp_path / "src"
+    src.mkdir()
+    bad = src / "bad.pdf"
+    good = src / "good.txt"
+    bad.write_text("bad", encoding="utf-8")
+    good.write_text("good", encoding="utf-8")
+    cfg = CarsenConfig(
+        knowledge=KnowledgeConfig(id="kb"),
+        storage=StorageConfig(data_directory=tmp_path / "data"),
+        sources=SourcesConfig(documents=[SourcePathConfig(path=src)]),
+    )
+    events: list[tuple[str, dict[str, object]]] = []
+
+    def fake_parse_file(path: Path, knowledge_id: str, root: Path | None = None) -> list[Chunk]:
+        if path == bad:
+            raise RuntimeError("parser unavailable")
+        return [Chunk(knowledge_id, str(path), "text", None, 1, 1, path.read_text(encoding="utf-8"))]
+
+    monkeypatch.setattr("carsen_mcp.ingestion.indexer.parse_file", fake_parse_file)
+
+    report = index_config(cfg, progress=lambda event, payload: events.append((event, payload)))
+
+    assert report.new == 2
+    assert report.unchanged == 0
+    assert report.chunks == 1
+    failed = [payload for event, payload in events if event == "file_failed"]
+    assert failed == [{"path": str(bad), "index": 1, "total": 2, "error": "parser unavailable"}]
+
+    retry_report = index_config(cfg)
+
+    assert retry_report.new == 1
+    assert retry_report.unchanged == 1

@@ -99,7 +99,24 @@ class IndexingConfig(BaseModel):
 
     incremental: bool = True
     follow_symlinks: bool = False
-    ignored_directories: list[str] = Field(default_factory=lambda: [".git", ".venv", "venv", "node_modules", "__pycache__", "build", "dist"])
+    ignored_directories: list[str] = Field(
+        default_factory=lambda: [
+            ".git",
+            ".venv",
+            "venv",
+            "node_modules",
+            "__pycache__",
+            ".pytest_cache",
+            ".nox",
+            ".tox",
+            "site-packages",
+            "dist-packages",
+            "vendor",
+            "_vendor",
+            "build",
+            "dist",
+        ]
+    )
     ignored_extensions: list[str] = Field(default_factory=lambda: [".pyc", ".so", ".dll", ".dylib"])
 
 

@@ -94,11 +94,24 @@ def index_config(
     )
     chunk_count = 0
     by_path = {r.path: r for r in records}
+    parsed_paths: list[str] = []
     _progress(progress, "parse_start", total=len(to_parse))
     for index, path_str in enumerate(to_parse, start=1):
         path = Path(path_str)
-        chunks = parse_file(path, config.knowledge.id, roots.get(path_str))
+        try:
+            chunks = parse_file(path, config.knowledge.id, roots.get(path_str))
+        except Exception as exc:
+            _progress(
+                progress,
+                "file_failed",
+                path=path_str,
+                index=index,
+                total=len(to_parse),
+                error=str(exc),
+            )
+            continue
         store.replace_file_chunks(path_str, chunks)
+        parsed_paths.append(path_str)
         chunk_count += len(chunks)
         _progress(
             progress,
@@ -113,7 +126,7 @@ def index_config(
     for path_str in status["deleted"]:
         store.delete_file_chunks(path_str)
     _progress(progress, "deleted", files=len(status["deleted"]))
-    state.upsert([by_path[p] for p in to_parse if p in by_path])
+    state.upsert([by_path[p] for p in parsed_paths if p in by_path])
     state.delete(status["deleted"])
     if embed:
         index_vectors_for_config(

@@ -102,6 +102,13 @@ class _IndexProgress:
                 completed=payload["index"],
                 description=description,
             )
+        elif event == "file_failed":
+            if self.parse_task is not None:
+                self._progress.update(self.parse_task, completed=payload["index"])
+            self.console.print(
+                f"Failed to parse {payload['path']}: {payload['error']}",
+                style="yellow",
+            )
         elif event == "parse_complete":
             self.console.print(
                 f"Parsed/wrote {payload['total']} file(s), chunks={payload['chunks']} "
