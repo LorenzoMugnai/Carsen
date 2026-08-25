@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 from carsen_mcp.chunks.model import Chunk
 
@@ -11,7 +12,12 @@ def read_text(path: Path) -> str:
     return path.read_text(encoding="utf-8", errors="replace")
 
 
-def parse_file(path: Path, knowledge_id: str, source_root: Path | None = None) -> list[Chunk]:
+def parse_file(
+    path: Path,
+    knowledge_id: str,
+    source_root: Path | None = None,
+    document_options: Any | None = None,
+) -> list[Chunk]:
     from .document import DOCUMENT_EXTENSIONS, parse_document
     from .markdown import parse_markdown
     from .python import parse_python
@@ -22,7 +28,7 @@ def parse_file(path: Path, knowledge_id: str, source_root: Path | None = None) -
     if path.suffix.lower() in {".md", ".markdown"}:
         return parse_markdown(path, knowledge_id, source_root)
     if path.suffix.lower() in DOCUMENT_EXTENSIONS:
-        return parse_document(path, knowledge_id, source_root)
+        return parse_document(path, knowledge_id, source_root, document_options)
     return parse_text(path, knowledge_id, source_root)
 
 

@@ -36,6 +36,11 @@ retrieval:
 indexing:
   incremental: true
   follow_symlinks: false
+parsing:
+  documents:
+    ocr: false
+    table_structure: false
+    force_backend_text: true
 sources:
   code: []
   documents: []
@@ -50,5 +55,6 @@ policy:
 - `storage.collection` defaults to `kb_<knowledge_id>`. `storage.data_directory` defaults under `~/.local/share/carsen/<id>`.
 - Environment variables and `~` are expanded in YAML values. Relative paths are resolved against the YAML file location.
 - `retrieval.fusion` currently accepts only `rrf`.
+- `parsing.documents` controls optional Docling document parsing. PDF parsing defaults to fast text extraction: OCR and table structure are disabled, and backend text is preferred.
 - `sources.code` and `sources.documents` contain entries with `path`, optional `repository_name`, optional `type` and optional `tags`.
 - `policy.allow_external_llm` is metadata for clients; it is not an enforcement boundary.

@@ -92,4 +92,5 @@ sources:
     assert "Fingerprinting 1 file(s) for incremental changes..." in result.stderr
     assert "Fingerprinting complete: 1 file(s)" in result.stderr
     assert "Classified files: new=1 unchanged=0 changed=0 deleted=0 to_parse=1" in result.stderr
+    assert "Parsing 1/1:" in result.stderr
     assert "Deleted stale file entries: 0." in result.stderr

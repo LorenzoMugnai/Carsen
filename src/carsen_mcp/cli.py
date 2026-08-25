@@ -92,6 +92,14 @@ class _IndexProgress:
                 "Parsing/writing files",
                 total=payload["total"],
             )
+        elif event == "file_parse_start" and self.parse_task is not None:
+            path = Path(payload["path"])
+            self._progress.update(
+                self.parse_task,
+                completed=payload["index"] - 1,
+                description=f"Parsing/writing files ({path.name})",
+            )
+            self.console.print(f"Parsing {payload['index']}/{payload['total']}: {payload['path']}")
         elif event == "file_parsed" and self.parse_task is not None:
             description = (
                 f"Parsing/writing files ({Path(payload['path']).name}, "

@@ -32,6 +32,12 @@ retrieval:
   fusion: rrf
   max_results_per_source: 3
 
+parsing:
+  documents:
+    ocr: false
+    table_structure: false
+    force_backend_text: true
+
 sources:
   code: []
   documents: []

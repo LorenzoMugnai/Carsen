@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from carsen_mcp.config import load_config
+from carsen_mcp.config import CarsenConfig, KnowledgeConfig, load_config
 
 
 def write_config(path: Path, text: str) -> Path:
@@ -30,6 +30,35 @@ def test_relative_paths_resolve_against_config(tmp_path: Path) -> None:
     cfg = load_config(path)
     assert cfg.storage.data_directory == tmp_path / "data" / "rel"
     assert cfg.sources.code[0].path == tmp_path / "src"
+
+
+def test_default_document_parsing_is_fast_pdf_mode() -> None:
+    cfg = CarsenConfig(knowledge=KnowledgeConfig(id="docs"))
+
+    assert cfg.parsing.documents.ocr is False
+    assert cfg.parsing.documents.table_structure is False
+    assert cfg.parsing.documents.force_backend_text is True
+
+
+def test_document_parsing_options_load_from_yaml(tmp_path: Path) -> None:
+    path = write_config(
+        tmp_path / "parse.yaml",
+        """
+knowledge:
+  id: docs
+parsing:
+  documents:
+    ocr: true
+    table_structure: true
+    force_backend_text: false
+""",
+    )
+
+    cfg = load_config(path)
+
+    assert cfg.parsing.documents.ocr is True
+    assert cfg.parsing.documents.table_structure is True
+    assert cfg.parsing.documents.force_backend_text is False
 
 
 @pytest.mark.parametrize(

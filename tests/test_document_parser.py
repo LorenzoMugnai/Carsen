@@ -5,6 +5,7 @@ from typing import Any
 
 import pytest
 
+from carsen_mcp.config import DocumentParsingConfig
 from carsen_mcp.parsers import document
 from carsen_mcp.parsers.base import parse_file
 from carsen_mcp.parsers.document import ParserUnavailableError, parse_document
@@ -23,6 +24,9 @@ class FakeResult:
 
 
 class FakeConverter:
+    def __init__(self, **kwargs: Any) -> None:
+        self.kwargs = kwargs
+
     def convert(self, path: Path) -> FakeResult:
         return FakeResult()
 
@@ -79,3 +83,57 @@ def test_parser_selection_routes_document_extensions(monkeypatch: pytest.MonkeyP
         path.write_text("placeholder", encoding="utf-8")
         chunks = parse_file(path, "kb", tmp_path)
         assert chunks[0].kind == "document"
+
+
+def test_pdf_docling_converter_uses_fast_options(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    captured: dict[str, Any] = {}
+
+    class InputFormat:
+        PDF = "pdf"
+
+    class PdfPipelineOptions:
+        do_ocr = True
+        do_table_structure = True
+        force_backend_text = False
+
+    class PdfFormatOption:
+        def __init__(self, **kwargs: Any) -> None:
+            self.kwargs = kwargs
+
+    class PyPdfiumDocumentBackend:
+        pass
+
+    class CapturingConverter(FakeConverter):
+        def __init__(self, **kwargs: Any) -> None:
+            captured.update(kwargs)
+
+    def fake_import_module(name: str) -> Any:
+        modules = {
+            "docling.datamodel.base_models": type("Module", (), {"InputFormat": InputFormat}),
+            "docling.datamodel.pipeline_options": type("Module", (), {"PdfPipelineOptions": PdfPipelineOptions}),
+            "docling.document_converter": type(
+                "Module",
+                (),
+                {"DocumentConverter": CapturingConverter, "PdfFormatOption": PdfFormatOption},
+            ),
+            "docling.backend.pypdfium2_backend": type(
+                "Module",
+                (),
+                {"PyPdfiumDocumentBackend": PyPdfiumDocumentBackend},
+            ),
+        }
+        return modules[name]
+
+    pdf = tmp_path / "paper.pdf"
+    pdf.write_bytes(b"%PDF")
+    monkeypatch.setattr(document.importlib, "import_module", fake_import_module)
+
+    chunks = parse_file(pdf, "kb", tmp_path, DocumentParsingConfig())
+
+    assert chunks[0].kind == "document"
+    format_option = captured["format_options"]["pdf"]
+    pipeline_options = format_option.kwargs["pipeline_options"]
+    assert pipeline_options.do_ocr is False
+    assert pipeline_options.do_table_structure is False
+    assert pipeline_options.force_backend_text is True
+    assert format_option.kwargs["backend"] is PyPdfiumDocumentBackend

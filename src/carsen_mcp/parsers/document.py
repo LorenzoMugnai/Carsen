@@ -21,12 +21,17 @@ DOCUMENT_EXTENSIONS = {".pdf", ".docx", ".html", ".htm"}
 BINARY_EXTENSIONS = {".pdf", ".docx"}
 
 
-def parse_document(path: Path, knowledge_id: str, source_root: Path | None = None) -> list[Chunk]:
+def parse_document(
+    path: Path,
+    knowledge_id: str,
+    source_root: Path | None = None,
+    options: Any | None = None,
+) -> list[Chunk]:
     """Parse PDF, DOCX or HTML documents, using Docling when available."""
     suffix = path.suffix.lower()
     source = rel_path(path, source_root)
     try:
-        return _parse_with_docling(path, knowledge_id, source)
+        return _parse_with_docling(path, knowledge_id, source, options)
     except ParserUnavailableError as exc:
         if suffix in {".html", ".htm"}:
             return _parse_html_fallback(path, knowledge_id, source)
@@ -45,9 +50,37 @@ def _load_converter():
     return module.DocumentConverter
 
 
-def _parse_with_docling(path: Path, knowledge_id: str, source: str) -> list[Chunk]:
+def _pdf_format_options(options: Any | None) -> dict[Any, Any]:
+    if options is None:
+        return {}
+    try:
+        input_format_module = importlib.import_module("docling.datamodel.base_models")
+        pipeline_module = importlib.import_module("docling.datamodel.pipeline_options")
+        converter_module = importlib.import_module("docling.document_converter")
+        backend_module = importlib.import_module("docling.backend.pypdfium2_backend")
+    except ImportError as exc:
+        raise ParserUnavailableError("Docling is not installed; PDF parsing options are unavailable") from exc
+
+    pipeline_options = pipeline_module.PdfPipelineOptions()
+    pipeline_options.do_ocr = bool(getattr(options, "ocr", False))
+    pipeline_options.do_table_structure = bool(getattr(options, "table_structure", False))
+    pipeline_options.force_backend_text = bool(getattr(options, "force_backend_text", True))
+    return {
+        input_format_module.InputFormat.PDF: converter_module.PdfFormatOption(
+            pipeline_options=pipeline_options,
+            backend=backend_module.PyPdfiumDocumentBackend,
+        )
+    }
+
+
+def _parse_with_docling(path: Path, knowledge_id: str, source: str, options: Any | None = None) -> list[Chunk]:
     converter_class = _load_converter()
-    converted = converter_class().convert(path)
+    converter = (
+        converter_class(format_options=_pdf_format_options(options))
+        if path.suffix.lower() == ".pdf" and options is not None
+        else converter_class()
+    )
+    converted = converter.convert(path)
     document = getattr(converted, "document", converted)
     markdown = document.export_to_markdown() if hasattr(document, "export_to_markdown") else ""
     data = document.export_to_dict() if hasattr(document, "export_to_dict") else {}

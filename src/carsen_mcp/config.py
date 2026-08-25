@@ -120,6 +120,20 @@ class IndexingConfig(BaseModel):
     ignored_extensions: list[str] = Field(default_factory=lambda: [".pyc", ".so", ".dll", ".dylib"])
 
 
+class DocumentParsingConfig(BaseModel):
+    """Document parser options."""
+
+    ocr: bool = False
+    table_structure: bool = False
+    force_backend_text: bool = True
+
+
+class ParsingConfig(BaseModel):
+    """Parser-specific options."""
+
+    documents: DocumentParsingConfig = Field(default_factory=DocumentParsingConfig)
+
+
 class SourcePathConfig(BaseModel):
     """A configured source root for code or documents."""
 
@@ -151,6 +165,7 @@ class CarsenConfig(BaseModel):
     models: ModelsConfig = Field(default_factory=ModelsConfig)
     retrieval: RetrievalConfig = Field(default_factory=RetrievalConfig)
     indexing: IndexingConfig = Field(default_factory=IndexingConfig)
+    parsing: ParsingConfig = Field(default_factory=ParsingConfig)
     sources: SourcesConfig = Field(default_factory=SourcesConfig)
     policy: PolicyConfig = Field(default_factory=PolicyConfig)
 

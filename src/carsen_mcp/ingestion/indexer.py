@@ -98,8 +98,9 @@ def index_config(
     _progress(progress, "parse_start", total=len(to_parse))
     for index, path_str in enumerate(to_parse, start=1):
         path = Path(path_str)
+        _progress(progress, "file_parse_start", path=path_str, index=index, total=len(to_parse))
         try:
-            chunks = parse_file(path, config.knowledge.id, roots.get(path_str))
+            chunks = parse_file(path, config.knowledge.id, roots.get(path_str), config.parsing.documents)
         except Exception as exc:
             _progress(
                 progress,

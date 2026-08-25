@@ -114,13 +114,15 @@ def test_indexer_reports_progress_without_changing_counts(tmp_path: Path) -> Non
         "fingerprint_complete",
         "classified",
         "parse_start",
+        "file_parse_start",
         "file_parsed",
         "parse_complete",
         "deleted",
     ]
     assert events[0][1]["files"] == 1
     assert events[4][1]["to_parse"] == 1
-    assert events[6][1]["chunk_total"] == report.chunks
+    assert events[6][1]["index"] == 1
+    assert events[7][1]["chunk_total"] == report.chunks
 
 
 def test_indexer_skips_failed_parse_and_retries_next_run(tmp_path: Path, monkeypatch) -> None:
@@ -137,7 +139,12 @@ def test_indexer_skips_failed_parse_and_retries_next_run(tmp_path: Path, monkeyp
     )
     events: list[tuple[str, dict[str, object]]] = []
 
-    def fake_parse_file(path: Path, knowledge_id: str, root: Path | None = None) -> list[Chunk]:
+    def fake_parse_file(
+        path: Path,
+        knowledge_id: str,
+        root: Path | None = None,
+        document_options: object | None = None,
+    ) -> list[Chunk]:
         if path == bad:
             raise RuntimeError("parser unavailable")
         return [Chunk(knowledge_id, str(path), "text", None, 1, 1, path.read_text(encoding="utf-8"))]
