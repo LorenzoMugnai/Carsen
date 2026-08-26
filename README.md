@@ -8,9 +8,9 @@
 
 <p>
   <a href="https://github.com/LorenzoMugnai/Carsen/actions/workflows/ci.yml">
-    <img alt="GitHub Actions CI" src="https://img.shields.io/github/actions/workflow/status/LorenzoMugnai/Carsen/ci.yml?branch=main&style=flat-square&label=CI">
+    <img alt="GitHub Actions CI" src="https://github.com/LorenzoMugnai/Carsen/actions/workflows/ci.yml/badge.svg?branch=main">
   </a>
-  <img alt="Python >=3.12" src="https://img.shields.io/badge/Python-%3E%3D3.12-3776AB?style=flat-square&logo=python&logoColor=white">
+  <img alt="Python 3.12+" src="https://img.shields.io/badge/Python-3.12%2B-3776AB?style=flat-square&logo=python&logoColor=white">
   <img alt="carsen-mcp v0.1.0" src="https://img.shields.io/badge/carsen--mcp-v0.1.0-7c3aed?style=flat-square">
   <img alt="MCP enabled" src="https://img.shields.io/badge/MCP-enabled-111827?style=flat-square">
   <img alt="Ruff" src="https://img.shields.io/badge/Ruff-linting-2C6BED?style=flat-square&logo=ruff&logoColor=white">
