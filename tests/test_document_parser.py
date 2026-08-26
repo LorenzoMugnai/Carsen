@@ -32,17 +32,44 @@ class FakeConverter:
 
 
 def test_docling_parser_uses_lazy_converter_and_provenance(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    pdf = tmp_path / "paper.pdf"
-    pdf.write_bytes(b"%PDF")
-    monkeypatch.setattr(document, "_load_converter", lambda: FakeConverter)
+    first_pdf = tmp_path / "first.pdf"
+    second_pdf = tmp_path / "second.pdf"
+    first_pdf.write_bytes(b"%PDF")
+    second_pdf.write_bytes(b"%PDF")
+    created = 0
 
-    chunks = parse_document(pdf, "kb", tmp_path)
+    class CountingConverter(FakeConverter):
+        def __init__(self, **kwargs: Any) -> None:
+            nonlocal created
+            created += 1
+            super().__init__(**kwargs)
 
+    monkeypatch.setattr(document, "_load_converter", lambda: CountingConverter)
+
+    chunks = parse_document(first_pdf, "kb", tmp_path)
+    parse_document(second_pdf, "kb", tmp_path)
+
+    assert created == 1
     assert [chunk.metadata["heading"] for chunk in chunks] == ["Overview", "Details"]
     assert chunks[0].metadata["page"] == 12
-    assert chunks[0].metadata["source_path"] == "paper.pdf"
+    assert chunks[0].metadata["source_path"] == "first.pdf"
     assert chunks[0].metadata["source_type"] == "documents"
     assert [chunk.order for chunk in chunks] == [0, 1]
+
+
+def test_pdf_with_selectable_text_uses_fast_parser(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    pdf = tmp_path / "paper.pdf"
+    pdf.write_bytes(b"%PDF")
+    fast_chunks = [object()]
+
+    monkeypatch.setattr(document, "_parse_pdf_text", lambda *args: fast_chunks)
+    monkeypatch.setattr(
+        document,
+        "_load_converter",
+        lambda: (_ for _ in ()).throw(AssertionError("Docling should not be loaded")),
+    )
+
+    assert parse_document(pdf, "kb", tmp_path) is fast_chunks
 
 
 def test_unavailable_docling_for_binary_formats(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:

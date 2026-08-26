@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib
+from functools import lru_cache
 from html.parser import HTMLParser
 from pathlib import Path
 from typing import Any
@@ -30,6 +31,10 @@ def parse_document(
     """Parse PDF, DOCX or HTML documents, using Docling when available."""
     suffix = path.suffix.lower()
     source = rel_path(path, source_root)
+    if suffix == ".pdf":
+        fast_chunks = _parse_pdf_text(path, knowledge_id, source)
+        if fast_chunks is not None:
+            return fast_chunks
     try:
         return _parse_with_docling(path, knowledge_id, source, options)
     except ParserUnavailableError as exc:
@@ -40,6 +45,44 @@ def parse_document(
                 f"Docling is required to parse {suffix} documents; install the optional document parsing dependency"
             ) from exc
         raise
+
+
+def _parse_pdf_text(path: Path, knowledge_id: str, source: str) -> list[Chunk] | None:
+    """Extract selectable PDF text without starting Docling's layout pipeline."""
+    try:
+        pypdf = importlib.import_module("pypdf")
+        reader = pypdf.PdfReader(str(path))
+    except Exception:
+        return None
+
+    pages: list[tuple[int, str]] = []
+    for page_number, page in enumerate(reader.pages, 1):
+        try:
+            text = page.extract_text() or ""
+        except Exception:
+            return None
+        if not text.strip():
+            return None
+        pages.append((page_number, text))
+
+    chunks: list[Chunk] = []
+    for page_number, text in pages:
+        chunks.extend(
+            parse_markdown_text(
+                text,
+                knowledge_id,
+                source,
+                {
+                    "path": source,
+                    "source_path": source,
+                    "source_type": "documents",
+                    "document_type": "pdf",
+                    "page": page_number,
+                },
+                kind="document",
+            )
+        )
+    return chunks or None
 
 
 def _load_converter():
@@ -73,13 +116,33 @@ def _pdf_format_options(options: Any | None) -> dict[Any, Any]:
     }
 
 
+@lru_cache(maxsize=8)
+def _cached_converter(converter_class: Any, pdf_options: tuple[bool, bool, bool] | None) -> Any:
+    """Reuse Docling's model-loaded converter across documents in one process."""
+    if pdf_options is None:
+        return converter_class()
+    options = type(
+        "DocumentOptions",
+        (),
+        {
+            "ocr": pdf_options[0],
+            "table_structure": pdf_options[1],
+            "force_backend_text": pdf_options[2],
+        },
+    )()
+    return converter_class(format_options=_pdf_format_options(options))
+
+
 def _parse_with_docling(path: Path, knowledge_id: str, source: str, options: Any | None = None) -> list[Chunk]:
     converter_class = _load_converter()
-    converter = (
-        converter_class(format_options=_pdf_format_options(options))
-        if path.suffix.lower() == ".pdf" and options is not None
-        else converter_class()
-    )
+    pdf_options = None
+    if path.suffix.lower() == ".pdf" and options is not None:
+        pdf_options = (
+            bool(getattr(options, "ocr", False)),
+            bool(getattr(options, "table_structure", False)),
+            bool(getattr(options, "force_backend_text", True)),
+        )
+    converter = _cached_converter(converter_class, pdf_options)
     converted = converter.convert(path)
     document = getattr(converted, "document", converted)
     markdown = document.export_to_markdown() if hasattr(document, "export_to_markdown") else ""
