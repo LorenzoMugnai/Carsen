@@ -123,6 +123,9 @@ class InstanceRuntime:
 
     def _search_with_debug(self, query: str, limit: int, filters: dict[str, Any] | None) -> tuple[list[SearchResult], dict[str, Any]]:
         sparse = self._sparse(None)
+        if self.config.retrieval.dense_candidates == 0:
+            results = sparse.search(query, limit=limit, filters=filters)
+            return results, {"mode": "sparse_only", "sparse_candidates": len(results), "ranking": [self._redacted_result(result) for result in results]}
         try:
             provider = self.embedding_provider or embedding_provider_from_config(self.config.models.embedding)
             store = self.vector_store or qdrant_store_from_config(self.config, provider.dimensions)

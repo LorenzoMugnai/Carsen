@@ -51,6 +51,7 @@ class StorageConfig(BaseModel):
     """Instance-specific persistent storage locations."""
 
     qdrant_url: str = "http://127.0.0.1:6333"
+    qdrant_path: Path | None = None
     collection: str | None = None
     data_directory: Path | None = None
 
@@ -62,6 +63,8 @@ class ModelProviderConfig(BaseModel):
     model: str
     dimensions: int | None = Field(default=None, ge=1)
     device: str = "auto"
+    batch_size: int = Field(default=8, ge=1)
+    max_seq_length: int | None = Field(default=1024, ge=1)
     query_instruction: str | None = None
 
 
@@ -208,6 +211,8 @@ def _resolve_relative_paths(config: CarsenConfig, base_dir: Path) -> CarsenConfi
 
     if config.storage.data_directory and not config.storage.data_directory.is_absolute():
         config.storage.data_directory = (base_dir / config.storage.data_directory).resolve()
+    if config.storage.qdrant_path and not config.storage.qdrant_path.is_absolute():
+        config.storage.qdrant_path = (base_dir / config.storage.qdrant_path).resolve()
     for source in [*config.sources.code, *config.sources.documents]:
         if not source.path.is_absolute():
             source.path = (base_dir / source.path).resolve()

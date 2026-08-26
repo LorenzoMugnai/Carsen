@@ -48,6 +48,46 @@ def test_index_vectors_for_config_upserts_canonical_chunks(tmp_path: Path) -> No
     assert vector_store.search(provider.embed_query("needle dense target"), limit=5)[0].chunk_id == target.chunk_id
 
 
+def test_index_vectors_batches_embeddings_and_preserves_order(tmp_path: Path) -> None:
+    config = cfg(tmp_path, "alpha")
+    config.models.embedding.batch_size = 2
+    chunks = [chunk("alpha", f"{index}.txt", f"text-{index}", order=index) for index in range(5)]
+    populate(config, chunks)
+
+    class SpyProvider:
+        dimensions = 2
+
+        def __init__(self) -> None:
+            self.calls: list[list[str]] = []
+
+        def embed_texts(self, texts: list[str]) -> list[list[float]]:
+            self.calls.append(texts)
+            return [[float(text.removeprefix("text-")), 0.0] for text in texts]
+
+        def embed_query(self, text: str) -> list[float]:
+            return [0.0, 0.0]
+
+    class SpyVectorStore:
+        def __init__(self) -> None:
+            self.upserts: list[tuple[list[str], list[list[float]]]] = []
+
+        def upsert_chunks(self, upsert_chunks, vectors) -> None:
+            self.upserts.append(([item.text for item in upsert_chunks], vectors))
+
+    provider = SpyProvider()
+    vector_store = SpyVectorStore()
+
+    count = index_vectors_for_config(config, embedding_provider=provider, vector_store=vector_store)  # type: ignore[arg-type]
+
+    assert count == 5
+    assert provider.calls == [["text-0", "text-1"], ["text-2", "text-3"], ["text-4"]]
+    assert vector_store.upserts == [
+        (["text-0", "text-1"], [[0.0, 0.0], [1.0, 0.0]]),
+        (["text-2", "text-3"], [[2.0, 0.0], [3.0, 0.0]]),
+        (["text-4"], [[4.0, 0.0]]),
+    ]
+
+
 def test_reembed_recreates_collection_from_chunk_store(tmp_path: Path) -> None:
     config = cfg(tmp_path, "alpha")
     provider = FakeEmbeddingProvider(dimensions=8)

@@ -1,7 +1,9 @@
 from pathlib import Path
 
 from carsen_mcp.chunks.model import Chunk
+from carsen_mcp.chunks.store import ChunkStore
 from carsen_mcp.config import CarsenConfig, KnowledgeConfig, SourcePathConfig, SourcesConfig, StorageConfig
+from carsen_mcp.embeddings import FakeEmbeddingProvider
 from carsen_mcp.ingestion.discovery import discover_files, sha256_file
 from carsen_mcp.ingestion.indexer import index_config
 from carsen_mcp.ingestion.state import FileRecord, IndexState
@@ -163,3 +165,33 @@ def test_indexer_skips_failed_parse_and_retries_next_run(tmp_path: Path, monkeyp
 
     assert retry_report.new == 1
     assert retry_report.unchanged == 1
+
+
+def test_indexer_embed_failure_records_dense_error_and_keeps_chunks(tmp_path: Path) -> None:
+    src = tmp_path / "src"
+    src.mkdir()
+    (src / "a.txt").write_text("dense optional target", encoding="utf-8")
+    cfg = CarsenConfig(
+        knowledge=KnowledgeConfig(id="kb"),
+        storage=StorageConfig(data_directory=tmp_path / "data"),
+        sources=SourcesConfig(documents=[SourcePathConfig(path=src)]),
+    )
+
+    class FailingVectorStore:
+        def upsert_chunks(self, chunks, vectors) -> None:
+            raise OSError("[Errno 61] Connection refused")
+
+    report = index_config(
+        cfg,
+        embed=True,
+        embedding_provider=FakeEmbeddingProvider(dimensions=8),
+        vector_store=FailingVectorStore(),  # type: ignore[arg-type]
+    )
+
+    assert report.new == 1
+    assert report.chunks == 1
+    assert report.dense_error is not None
+    assert "could not upsert vectors to Qdrant" in report.dense_error
+    assert "Connection refused" in report.dense_error
+    assert len(list(ChunkStore(tmp_path / "data").load_all_chunks())) == 1
+    assert IndexState(tmp_path / "data").classify([])["deleted"] == [str(src / "a.txt")]

@@ -26,10 +26,18 @@ def test_env_expansion(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_relative_paths_resolve_against_config(tmp_path: Path) -> None:
-    path = write_config(tmp_path / "rel.yaml", "knowledge:\n  id: rel\nstorage:\n  data_directory: data/rel\nsources:\n  code:\n    - path: src\n")
+    path = write_config(tmp_path / "rel.yaml", "knowledge:\n  id: rel\nstorage:\n  data_directory: data/rel\n  qdrant_path: data/rel/qdrant\nsources:\n  code:\n    - path: src\n")
     cfg = load_config(path)
     assert cfg.storage.data_directory == tmp_path / "data" / "rel"
+    assert cfg.storage.qdrant_path == tmp_path / "data" / "rel" / "qdrant"
     assert cfg.sources.code[0].path == tmp_path / "src"
+
+
+def test_qdrant_path_expands_environment(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("CARSEN_QDRANT", str(tmp_path / "qdrant"))
+    path = write_config(tmp_path / "qdrant.yaml", "knowledge:\n  id: q\nstorage:\n  qdrant_path: ${CARSEN_QDRANT}\n")
+
+    assert load_config(path).storage.qdrant_path == tmp_path / "qdrant"
 
 
 def test_default_document_parsing_is_fast_pdf_mode() -> None:
@@ -46,6 +54,35 @@ def test_default_watch_indexing_options() -> None:
     assert cfg.indexing.watch is False
     assert cfg.indexing.watch_debounce_seconds == 10.0
     assert cfg.indexing.watch_embed is False
+
+
+def test_default_embedding_memory_safety_options() -> None:
+    cfg = CarsenConfig(knowledge=KnowledgeConfig(id="embed"))
+
+    assert cfg.models.embedding.batch_size == 8
+    assert cfg.models.embedding.max_seq_length == 1024
+
+
+def test_embedding_memory_safety_options_load_from_yaml(tmp_path: Path) -> None:
+    path = write_config(
+        tmp_path / "embed.yaml",
+        """
+knowledge:
+  id: embed
+models:
+  embedding:
+    provider: sentence_transformers
+    model: test/model
+    dimensions: 3
+    batch_size: 2
+    max_seq_length: 128
+""",
+    )
+
+    cfg = load_config(path)
+
+    assert cfg.models.embedding.batch_size == 2
+    assert cfg.models.embedding.max_seq_length == 128
 
 
 def test_document_parsing_options_load_from_yaml(tmp_path: Path) -> None:
@@ -77,6 +114,8 @@ parsing:
         "knowledge:\n  id: bad\nserver:\n  transport: tcp\n",
         "knowledge:\n  id: bad\nretrieval:\n  fusion: weighted\n",
         "knowledge:\n  id: bad\nindexing:\n  watch_debounce_seconds: 0\n",
+        "knowledge:\n  id: bad\nmodels:\n  embedding:\n    model: fake\n    batch_size: 0\n",
+        "knowledge:\n  id: bad\nmodels:\n  embedding:\n    model: fake\n    max_seq_length: 0\n",
     ],
 )
 def test_invalid_ports_settings(tmp_path: Path, body: str) -> None:

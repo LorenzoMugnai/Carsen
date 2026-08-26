@@ -17,6 +17,16 @@ from .discovery import discover_files, sha256_file
 from .git import git_metadata
 from .state import FileRecord, IndexState
 
+DEFAULT_EMBEDDING_BATCH_SIZE = 8
+
+
+class EmbeddingIndexError(RuntimeError):
+    """Embedding provider failed while building a dense index."""
+
+
+class VectorIndexError(RuntimeError):
+    """Vector store failed while building a dense index."""
+
 
 @dataclass(frozen=True)
 class IndexReport:
@@ -25,6 +35,7 @@ class IndexReport:
     changed: int
     deleted: int
     chunks: int
+    dense_error: str | None = None
 
 
 class ProgressReporter(Protocol):
@@ -50,6 +61,12 @@ def _records(files: list[Path], progress: ProgressReporter | None = None) -> lis
 
 def _sources(config: CarsenConfig) -> list[SourcePathConfig]:
     return [*config.sources.code, *config.sources.documents]
+
+
+def _chunk_batches[T](items: list[T], size: int) -> list[list[T]]:
+    if size < 1:
+        raise ValueError("embedding batch size must be positive")
+    return [items[index : index + size] for index in range(0, len(items), size)]
 
 
 def index_config(
@@ -129,20 +146,37 @@ def index_config(
     _progress(progress, "deleted", files=len(status["deleted"]))
     state.upsert([by_path[p] for p in parsed_paths if p in by_path])
     state.delete(status["deleted"])
+    dense_error: str | None = None
     if embed:
-        index_vectors_for_config(
-            config,
-            embedding_provider=embedding_provider,
-            vector_store=vector_store,
-            progress=progress,
-        )
+        try:
+            index_vectors_for_config(
+                config,
+                embedding_provider=embedding_provider,
+                vector_store=vector_store,
+                progress=progress,
+            )
+        except (EmbeddingIndexError, VectorIndexError) as exc:
+            dense_error = _compact_error(exc)
+            _progress(progress, "dense_failed", error=dense_error)
     return IndexReport(
         len(status["new"]),
         len(status["unchanged"]),
         len(status["changed"]),
         len(status["deleted"]),
         chunk_count,
+        dense_error,
     )
+
+
+def _compact_error(exc: Exception) -> str:
+    messages: list[str] = []
+    current: BaseException | None = exc
+    while current is not None:
+        text = str(current)
+        if text and text not in messages:
+            messages.append(text)
+        current = current.__cause__ if current.__cause__ is not None else current.__context__
+    return ": ".join(messages) or exc.__class__.__name__
 
 
 def index_vectors_for_config(
@@ -160,21 +194,57 @@ def index_vectors_for_config(
         for chunk in ChunkStore(Path(config.storage.data_directory)).load_all_chunks()
         if chunk.knowledge_id == config.knowledge.id
     ]
+    chunks.sort(key=lambda chunk: (chunk.source_path, chunk.order, chunk.chunk_id))
     _progress(progress, "embed_start", chunks=len(chunks), recreate=recreate)
     provider = embedding_provider or embedding_provider_from_config(config.models.embedding)
-    texts = [chunk.text for chunk in chunks]
-    vectors = provider.embed_texts(texts) if texts else []
-    _progress(progress, "embed_complete", chunks=len(chunks))
-    dimensions = provider.dimensions or (len(vectors[0]) if vectors else 0)
-    if dimensions < 1:
-        raise ValueError("embedding dimensions must be available before vector indexing")
-    store = vector_store or qdrant_store_from_config(config, dimensions)
+    batch_size = config.models.embedding.batch_size or DEFAULT_EMBEDDING_BATCH_SIZE
+    store: QdrantVectorStore | None = vector_store
+    upserted = 0
     if recreate:
-        store.recreate_collection()
+        if store is None:
+            dimensions = provider.dimensions
+            if dimensions < 1:
+                raise ValueError("embedding dimensions must be available before vector indexing")
+            try:
+                store = qdrant_store_from_config(config, dimensions)
+            except Exception as exc:
+                raise VectorIndexError("could not create Qdrant vector store") from exc
+        try:
+            store.recreate_collection()
+        except Exception as exc:
+            raise VectorIndexError("could not recreate Qdrant collection") from exc
     _progress(progress, "upsert_start", chunks=len(chunks), recreate=recreate)
-    store.upsert_chunks(chunks, vectors)
-    _progress(progress, "upsert_complete", chunks=len(chunks))
-    return len(chunks)
+    for batch_index, chunk_batch in enumerate(_chunk_batches(chunks, batch_size), start=1):
+        texts = [chunk.text for chunk in chunk_batch]
+        try:
+            vectors = provider.embed_texts(texts)
+        except Exception as exc:
+            raise EmbeddingIndexError(
+                "embedding batch failed; one chunk or document may be too large. "
+                "Try reducing models.embedding.batch_size, lowering models.embedding.max_seq_length, "
+                "using a smaller embedding model, or indexing without --embed."
+            ) from exc
+        if len(vectors) != len(chunk_batch):
+            raise RuntimeError(
+                f"embedding provider returned {len(vectors)} vector(s) for {len(chunk_batch)} chunk(s)"
+            )
+        if store is None:
+            dimensions = provider.dimensions or (len(vectors[0]) if vectors else 0)
+            if dimensions < 1:
+                raise ValueError("embedding dimensions must be available before vector indexing")
+            try:
+                store = qdrant_store_from_config(config, dimensions)
+            except Exception as exc:
+                raise VectorIndexError("could not create Qdrant vector store") from exc
+        try:
+            store.upsert_chunks(chunk_batch, vectors)
+        except Exception as exc:
+            raise VectorIndexError("could not upsert vectors to Qdrant") from exc
+        upserted += len(chunk_batch)
+        _progress(progress, "embed_batch_complete", batches=batch_index, chunks=upserted, total=len(chunks))
+    _progress(progress, "embed_complete", chunks=upserted)
+    _progress(progress, "upsert_complete", chunks=upserted)
+    return upserted
 
 
 def reembed_config(config: CarsenConfig, embedding_provider: EmbeddingProvider | None = None, vector_store: QdrantVectorStore | None = None) -> int:

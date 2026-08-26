@@ -94,3 +94,107 @@ sources:
     assert "Classified files: new=1 unchanged=0 changed=0 deleted=0 to_parse=1" in result.stderr
     assert "Parsing 1/1:" in result.stderr
     assert "Deleted stale file entries: 0." in result.stderr
+
+
+def test_index_cli_warns_and_succeeds_when_embedding_fails(tmp_path: Path, monkeypatch) -> None:
+    config = tmp_path / "carsen.yaml"
+    config.write_text(
+        """
+knowledge:
+  id: cli-kb
+sources:
+  code: []
+  documents: []
+""",
+        encoding="utf-8",
+    )
+
+    def fake_index_config(config, force: bool = False, embed: bool = False, progress=None):
+        class Report:
+            new = 1
+            unchanged = 0
+            changed = 0
+            deleted = 0
+            chunks = 2
+            dense_error = "embedding batch failed: Invalid buffer size: 32.00 GiB"
+
+        return Report()
+
+    monkeypatch.setattr("carsen_mcp.ingestion.indexer.index_config", fake_index_config)
+
+    result = CliRunner().invoke(app, ["index", "--config", str(config), "--embed"])
+
+    assert result.exit_code == 0
+    assert "Indexed 'cli-kb': new=1 unchanged=0 changed=0 deleted=0 chunks=2" in result.stdout
+    assert "Warning: dense vector indexing failed and was skipped" in result.stderr
+    assert "Sparse/exact MCP search remains available" in result.stderr
+    assert "Invalid buffer size: 32.00 GiB" in result.stderr
+    assert "Traceback" not in result.stderr
+
+
+def test_index_cli_warns_and_succeeds_when_vector_store_fails(tmp_path: Path, monkeypatch) -> None:
+    config = tmp_path / "carsen.yaml"
+    config.write_text(
+        """
+knowledge:
+  id: cli-kb
+storage:
+  qdrant_url: http://127.0.0.1:6333
+sources:
+  code: []
+  documents: []
+""",
+        encoding="utf-8",
+    )
+    def fake_index_config(config, force: bool = False, embed: bool = False, progress=None):
+        class Report:
+            new = 1
+            unchanged = 0
+            changed = 0
+            deleted = 0
+            chunks = 2
+            dense_error = "could not upsert vectors to Qdrant: [Errno 61] Connection refused"
+
+        return Report()
+
+    monkeypatch.setattr("carsen_mcp.ingestion.indexer.index_config", fake_index_config)
+
+    result = CliRunner().invoke(app, ["index", "--config", str(config), "--embed"])
+
+    assert result.exit_code == 0
+    assert "Warning: dense vector indexing failed and was skipped" in result.stderr
+    assert "Sparse/exact MCP search remains available" in result.stderr
+    assert "could not upsert vectors to Qdrant: [Errno 61] Connection refused" in result.stderr
+    assert "Vector store target: Qdrant URL http://127.0.0.1:6333" in result.stderr
+    assert "embedding batch size" not in result.stderr
+    assert "model memory" not in result.stderr
+    assert "Traceback" not in result.stderr
+
+
+def test_reembed_cli_still_fails_on_vector_store_error(tmp_path: Path, monkeypatch) -> None:
+    config = tmp_path / "carsen.yaml"
+    config.write_text(
+        """
+knowledge:
+  id: cli-kb
+storage:
+  qdrant_url: http://127.0.0.1:6333
+sources:
+  code: []
+  documents: []
+""",
+        encoding="utf-8",
+    )
+    from carsen_mcp.ingestion.indexer import VectorIndexError
+
+    def fail_reembed_config(config):
+        raise VectorIndexError("could not upsert vectors to Qdrant") from OSError("[Errno 61] Connection refused")
+
+    monkeypatch.setattr("carsen_mcp.ingestion.indexer.reembed_config", fail_reembed_config)
+
+    result = CliRunner().invoke(app, ["reembed", "--config", str(config)])
+
+    assert result.exit_code == 1
+    assert "Qdrant/vector store connection failed: could not upsert vectors to Qdrant" in result.stderr
+    assert "Configured Qdrant URL: http://127.0.0.1:6333" in result.stderr
+    assert "Traceback" not in result.stderr

@@ -49,6 +49,29 @@ def test_runtime_knowledge_info_searches_and_symbol(tmp_path: Path, capsys: pyte
     assert "process user guide" not in stderr
 
 
+def test_runtime_sparse_only_mode_does_not_load_dense_provider(tmp_path: Path) -> None:
+    config = cfg(tmp_path, "alpha")
+    config.retrieval.dense_candidates = 0
+    target = chunk("alpha", "src/target.py", "target", "sparse only target", 0, source_type="code")
+    populate(config, [target])
+
+    class ExplodingEmbeddingProvider:
+        dimensions = 8
+
+        def embed_texts(self, texts: list[str]) -> list[list[float]]:
+            raise AssertionError("dense provider should not be used")
+
+        def embed_query(self, text: str) -> list[float]:
+            raise AssertionError("dense provider should not be used")
+
+    runtime = InstanceRuntime(config, embedding_provider=ExplodingEmbeddingProvider())  # type: ignore[arg-type]
+
+    debug = runtime.search_debug("target", limit=3)
+
+    assert debug["diagnostics"]["mode"] == "sparse_only"
+    assert debug["results"][0]["chunk_id"] == target.chunk_id
+
+
 def test_runtime_read_source_expansion_and_metadata(tmp_path: Path) -> None:
     config = cfg(tmp_path, "alpha")
     chunks = [

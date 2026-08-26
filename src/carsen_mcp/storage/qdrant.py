@@ -117,6 +117,8 @@ def qdrant_store_from_config(config: Any, dimensions: int, client: QdrantClient 
     collection = config.storage.collection
     if collection is None:
         raise ValueError("storage.collection is required")
+    if client is None and config.storage.qdrant_path is not None:
+        client = QdrantClient(path=str(config.storage.qdrant_path), check_compatibility=False)
     return QdrantVectorStore(
         client or QdrantClient(url=config.storage.qdrant_url, check_compatibility=False),
         collection,

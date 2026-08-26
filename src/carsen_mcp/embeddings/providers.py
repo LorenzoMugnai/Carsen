@@ -48,10 +48,21 @@ class FakeEmbeddingProvider:
 class SentenceTransformersEmbeddingProvider:
     """Optional sentence-transformers provider imported lazily at runtime."""
 
-    def __init__(self, model_name: str, dimensions: int | None = None, device: str | None = None) -> None:
+    def __init__(
+        self,
+        model_name: str,
+        dimensions: int | None = None,
+        device: str | None = None,
+        batch_size: int = 8,
+        max_seq_length: int | None = 1024,
+    ) -> None:
+        if batch_size < 1:
+            raise ValueError("embedding batch size must be positive")
         self.model_name = model_name
         self.dimensions = dimensions or 0
         self.device = device
+        self.batch_size = batch_size
+        self.max_seq_length = max_seq_length
         self._model: Any | None = None
 
     def _load_model(self) -> Any:
@@ -63,6 +74,8 @@ class SentenceTransformersEmbeddingProvider:
             SentenceTransformer = module.SentenceTransformer
             kwargs = {"device": self.device} if self.device else {}
             model = SentenceTransformer(self.model_name, **kwargs)
+            if self.max_seq_length is not None:
+                model.max_seq_length = self.max_seq_length
             self._model = model
             if not self.dimensions:
                 self.dimensions = int(model.get_sentence_embedding_dimension() or 0)
@@ -72,7 +85,12 @@ class SentenceTransformersEmbeddingProvider:
 
     def embed_texts(self, texts: list[str]) -> list[list[float]]:
         model = self._load_model()
-        vectors = model.encode(texts, convert_to_numpy=False, normalize_embeddings=True)
+        vectors = model.encode(
+            texts,
+            batch_size=self.batch_size,
+            convert_to_numpy=False,
+            normalize_embeddings=True,
+        )
         return [list(map(float, vector)) for vector in vectors]
 
     def embed_query(self, text: str) -> list[float]:
@@ -87,5 +105,11 @@ def embedding_provider_from_config(config: ModelProviderConfig) -> EmbeddingProv
         return FakeEmbeddingProvider(dimensions=config.dimensions or 8)
     if provider in {"sentence_transformers", "sentence_transformer"}:
         device = None if config.device == "auto" else config.device
-        return SentenceTransformersEmbeddingProvider(config.model, dimensions=config.dimensions, device=device)
+        return SentenceTransformersEmbeddingProvider(
+            config.model,
+            dimensions=config.dimensions,
+            device=device,
+            batch_size=config.batch_size,
+            max_seq_length=config.max_seq_length,
+        )
     raise ValueError(f"unsupported embedding provider: {config.provider}")

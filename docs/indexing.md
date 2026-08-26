@@ -12,7 +12,14 @@ carsen watch NAME
 
 The indexer discovers files under configured `sources.code` and `sources.documents`, computes file records, classifies files as new, unchanged, changed or deleted, then reparses only the required files unless `--force` is used.
 
-`--embed` additionally embeds the canonical chunks and upserts them into the instance-specific Qdrant collection. Without `--embed`, Carsen still updates the canonical chunk store and sparse/MCP fallback retrieval can use those chunks.
+`--embed` additionally tries to embed the canonical chunks and upsert them into the instance-specific Qdrant collection. Dense embeddings and Qdrant are optional enhancements: without them, Carsen still updates the canonical chunk store and sparse/exact MCP retrieval can use those chunks. If the dense phase fails during `carsen index --embed`, the command warns and leaves the chunk index usable.
+
+Think of indexing as two passes:
+
+1. **Catalogue pass**: discover files, parse them into cited chunks and write those chunks locally. This is what `carsen index NAME` does, and it is enough for sparse/exact MCP retrieval.
+2. **Semantic pass**: turn chunks into vectors and write them to Qdrant. This only happens with `--embed`, and it is optional.
+
+This means a machine without GPU, Docker or a running Qdrant service can still run Carsen usefully. Configure `retrieval.dense_candidates: 0` to make searches sparse/exact-only and avoid loading the embedding model during queries.
 
 ```mermaid
 flowchart LR
@@ -60,6 +67,10 @@ Changing the embedding model does not require reparsing source files if canonica
 ```bash
 carsen reembed NAME
 ```
+
+`carsen reembed` is dense-only and exits nonzero if the embedding provider or vector store is unavailable.
+
+Use `reembed` when the chunk store is already correct but the dense index needs to be rebuilt, for example after changing the embedding model. Do not use it as the first setup step on a CPU-only machine; run plain `carsen index NAME` first and confirm sparse/exact search works.
 
 To remove the local chunk store, incremental state and dense collection for an instance:
 

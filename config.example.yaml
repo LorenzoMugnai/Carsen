@@ -10,6 +10,9 @@ server:
 
 storage:
   qdrant_url: http://127.0.0.1:6333
+  # qdrant_path overrides qdrant_url and uses embedded local Qdrant storage.
+  # Use this when Docker or a Qdrant server is unavailable.
+  # qdrant_path: "${HOME}/.local/share/carsen/example/qdrant"
   collection: kb_example
   data_directory: "${HOME}/.local/share/carsen/example"
 
@@ -19,12 +22,16 @@ models:
     model: Qwen/Qwen3-Embedding-0.6B
     dimensions: 1024
     device: auto
+    batch_size: 8
+    max_seq_length: 1024
   reranker:
     provider: sentence_transformers
     model: Qwen/Qwen3-Reranker-0.6B
     device: auto
 
 retrieval:
+  # Set dense_candidates to 0 for sparse/exact-only operation.
+  # This avoids loading embedding models during search and works without GPU/Qdrant.
   dense_candidates: 40
   sparse_candidates: 40
   fused_candidates: 30

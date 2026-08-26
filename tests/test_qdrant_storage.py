@@ -3,8 +3,9 @@ from __future__ import annotations
 from qdrant_client import QdrantClient
 
 from carsen_mcp.chunks.model import Chunk
+from carsen_mcp.config import CarsenConfig, KnowledgeConfig, StorageConfig
 from carsen_mcp.embeddings import FakeEmbeddingProvider
-from carsen_mcp.storage import QdrantVectorStore
+from carsen_mcp.storage import QdrantVectorStore, qdrant_store_from_config
 
 
 def make_chunk(knowledge_id: str, source_path: str, symbol: str, text: str, kind: str = "function") -> Chunk:
@@ -71,3 +72,23 @@ def test_qdrant_delete_by_source_path() -> None:
 
     remaining = store.search(embeddings.embed_query("target"), limit=10)
     assert {result.metadata["source_path"] for result in remaining} == {"keep.py"}
+
+
+def test_qdrant_store_from_config_uses_embedded_path(tmp_path) -> None:
+    embeddings = FakeEmbeddingProvider(dimensions=8)
+    config = CarsenConfig(
+        knowledge=KnowledgeConfig(id="embedded"),
+        storage=StorageConfig(
+            collection="kb_embedded",
+            data_directory=tmp_path / "data",
+            qdrant_path=tmp_path / "qdrant",
+            qdrant_url="http://127.0.0.1:1",
+        ),
+    )
+    store = qdrant_store_from_config(config, dimensions=8)
+    chunk = make_chunk("embedded", "a.py", "helper", "embedded target")
+
+    store.upsert_chunks([chunk], embeddings.embed_texts([chunk.text]))
+
+    assert store.search(embeddings.embed_query("embedded target"), limit=5)[0].chunk_id == chunk.chunk_id
+    assert (tmp_path / "qdrant").exists()

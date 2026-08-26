@@ -11,11 +11,13 @@ This semi-generated reference mirrors the current Typer command surface used by 
 
 ## Index and retrieval
 
-- `carsen index NAME [--force] [--embed]` parses sources into canonical chunks, optionally embedding into Qdrant.
+- `carsen index NAME [--force] [--embed]` parses sources into canonical chunks, optionally embedding into Qdrant. If the optional dense phase fails, indexing still succeeds with a warning and sparse/exact search remains available.
+- `carsen index NAME` is the portable baseline: it does not require GPU, embeddings or Qdrant, and it prepares the MCP tools that read from the local chunk store.
 - `carsen watch NAME` watches configured sources and indexes after debounced filesystem changes.
 - `carsen search NAME QUERY` searches a local instance chunk store.
 - `carsen search --config PATH QUERY` searches an explicit configuration.
 - Search options: `--corpus all|code|documents`, `--limit N`, `--debug`.
+- Set `retrieval.dense_candidates: 0` in configuration when you want search to stay sparse/exact-only and avoid loading the embedding model.
 - `carsen evaluate NAME DATASET` evaluates retrieval against a YAML dataset.
 - `carsen evaluate --config PATH DATASET` evaluates an explicit configuration.
 
@@ -24,7 +26,7 @@ This semi-generated reference mirrors the current Typer command surface used by 
 - `carsen serve NAME [--watch|--no-watch]` starts one MCP instance over configured or overridden transport, optionally running watch indexing in the background.
 - `carsen serve-all [NAMES...]` starts multiple instances under an external supervisor pattern.
 - `carsen stop NAME` reports the external-supervisor stop guidance.
-- `carsen reembed NAME` re-embeds existing canonical chunks.
+- `carsen reembed NAME` re-embeds existing canonical chunks; this dense-only command exits nonzero if embeddings or Qdrant are unavailable.
 - `carsen delete-index NAME` removes local index state and attempts dense collection cleanup.
 
 ## `carsen init-self`

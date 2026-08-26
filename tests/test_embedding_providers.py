@@ -1,0 +1,83 @@
+from __future__ import annotations
+
+import types
+
+from carsen_mcp.config import ModelProviderConfig
+from carsen_mcp.embeddings.providers import SentenceTransformersEmbeddingProvider, embedding_provider_from_config
+
+
+def test_sentence_transformers_provider_sets_sequence_limit_and_encode_batch(monkeypatch) -> None:
+    created = {}
+
+    class FakeModel:
+        def __init__(self, model_name: str, device: str | None = None) -> None:
+            self.model_name = model_name
+            self.device = device
+            self.max_seq_length = 9999
+            self.encode_calls = []
+            created["model"] = self
+
+        def get_sentence_embedding_dimension(self) -> int:
+            return 2
+
+        def encode(self, texts, **kwargs):
+            self.encode_calls.append((texts, kwargs))
+            return [[1.0, 0.0] for _ in texts]
+
+    monkeypatch.setattr(
+        "carsen_mcp.embeddings.providers.importlib.import_module",
+        lambda name: types.SimpleNamespace(SentenceTransformer=FakeModel),
+    )
+    provider = SentenceTransformersEmbeddingProvider(
+        "fake/model",
+        device="cpu",
+        batch_size=3,
+        max_seq_length=128,
+    )
+
+    vectors = provider.embed_texts(["a", "b"])
+    query = provider.embed_query("q")
+
+    model = created["model"]
+    assert model.max_seq_length == 128
+    assert vectors == [[1.0, 0.0], [1.0, 0.0]]
+    assert query == [1.0, 0.0]
+    assert model.encode_calls == [
+        (["a", "b"], {"batch_size": 3, "convert_to_numpy": False, "normalize_embeddings": True}),
+        (["q"], {"batch_size": 3, "convert_to_numpy": False, "normalize_embeddings": True}),
+    ]
+
+
+def test_embedding_provider_from_config_passes_memory_safety_options(monkeypatch) -> None:
+    captured = {}
+
+    class FakeProvider:
+        def __init__(self, model_name, dimensions=None, device=None, batch_size=8, max_seq_length=1024) -> None:
+            captured.update(
+                model_name=model_name,
+                dimensions=dimensions,
+                device=device,
+                batch_size=batch_size,
+                max_seq_length=max_seq_length,
+            )
+
+    monkeypatch.setattr("carsen_mcp.embeddings.providers.SentenceTransformersEmbeddingProvider", FakeProvider)
+
+    embedding_provider_from_config(
+        ModelProviderConfig(
+            provider="sentence_transformers",
+            model="fake/model",
+            dimensions=7,
+            device="cpu",
+            batch_size=2,
+            max_seq_length=256,
+        )
+    )
+
+    assert captured == {
+        "model_name": "fake/model",
+        "dimensions": 7,
+        "device": "cpu",
+        "batch_size": 2,
+        "max_seq_length": 256,
+    }

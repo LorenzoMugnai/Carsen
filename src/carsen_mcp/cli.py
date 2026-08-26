@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from time import monotonic
 from types import TracebackType
-from typing import Annotated, Any
+from typing import Annotated, Any, NoReturn
 
 import typer
 from rich.console import Console
@@ -132,6 +132,8 @@ class _IndexProgress:
             self.console.print(f"Upserting vectors: chunks={payload['chunks']}.")
         elif event == "upsert_complete":
             self.console.print(f"Vector upsert complete: chunks={payload['chunks']}.")
+        elif event == "dense_failed":
+            self.console.print(f"Dense vector indexing skipped: {payload['error']}", style="yellow")
 
 
 def _preview(text: str, length: int = 120) -> str:
@@ -152,6 +154,53 @@ def _resolve_config(name: str | None, config: Path | None) -> CarsenConfig:
     if not path.exists():
         raise typer.BadParameter(f"configuration '{name}' was not found at {path}")
     return load_config(path)
+
+
+def _embedding_failure(exc: Exception) -> NoReturn:
+    typer.echo(
+        "Embedding failed: "
+        f"{exc}\n"
+        "Try reducing the embedding batch size, using a smaller embedding model, "
+        "running index without --embed, or checking available model memory.",
+        err=True,
+    )
+    raise typer.Exit(1) from exc
+
+
+def _compact_error(exc: Exception) -> str:
+    messages: list[str] = []
+    current: BaseException | None = exc
+    while current is not None:
+        text = str(current)
+        if text and text not in messages:
+            messages.append(text)
+        current = current.__cause__ if current.__cause__ is not None else current.__context__
+    return ": ".join(messages) or exc.__class__.__name__
+
+
+def _vector_failure(config: CarsenConfig, exc: Exception) -> NoReturn:
+    typer.echo(
+        "Qdrant/vector store connection failed: "
+        f"{_compact_error(exc)}\n"
+        f"Configured Qdrant URL: {config.storage.qdrant_url}\n"
+        "Start Qdrant and retry, or update storage.qdrant_url to a reachable Qdrant service.",
+        err=True,
+    )
+    raise typer.Exit(1) from exc
+
+
+def _dense_warning(config: CarsenConfig, error: str) -> None:
+    qdrant_target = (
+        f"embedded path {config.storage.qdrant_path}"
+        if config.storage.qdrant_path is not None
+        else f"Qdrant URL {config.storage.qdrant_url}"
+    )
+    typer.echo(
+        "Warning: dense vector indexing failed and was skipped. "
+        f"Sparse/exact MCP search remains available. Dense error: {error}. "
+        f"Vector store target: {qdrant_target}.",
+        err=True,
+    )
 
 
 @app.command()
@@ -368,12 +417,21 @@ def index(
 ) -> None:
     """Index configured sources incrementally."""
 
-    from .ingestion.indexer import index_config
+    from .ingestion.indexer import EmbeddingIndexError, VectorIndexError, index_config
 
     cfg = _resolve_config(name, config)
-    with _IndexProgress() as progress:
-        report = index_config(cfg, force=force, embed=embed, progress=progress)
+    try:
+        with _IndexProgress() as progress:
+            report = index_config(cfg, force=force, embed=embed, progress=progress)
+    except VectorIndexError as exc:
+        _vector_failure(cfg, exc)
+    except EmbeddingIndexError as exc:
+        if embed:
+            _embedding_failure(exc)
+        raise
     typer.echo(f"Indexed '{cfg.knowledge.id}': new={report.new} unchanged={report.unchanged} changed={report.changed} deleted={report.deleted} chunks={report.chunks}")
+    if report.dense_error:
+        _dense_warning(cfg, report.dense_error)
 
 
 @app.command()
@@ -461,10 +519,15 @@ def stop(name: Annotated[str | None, typer.Argument(help="Registered knowledge i
 def reembed(name: Annotated[str | None, typer.Argument(help="Registered knowledge instance to re-embed.")] = None, config: Annotated[Path | None, typer.Option("--config", help="Explicit YAML configuration to re-embed.")] = None) -> None:
     """Re-embed canonical chunks without reparsing."""
 
-    from .ingestion.indexer import reembed_config
+    from .ingestion.indexer import EmbeddingIndexError, VectorIndexError, reembed_config
 
     cfg = _resolve_config(name, config)
-    count = reembed_config(cfg)
+    try:
+        count = reembed_config(cfg)
+    except VectorIndexError as exc:
+        _vector_failure(cfg, exc)
+    except EmbeddingIndexError as exc:
+        _embedding_failure(exc)
     typer.echo(f"Re-embedded '{cfg.knowledge.id}': chunks={count}")
 
 
