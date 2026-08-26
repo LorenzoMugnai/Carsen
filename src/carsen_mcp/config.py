@@ -143,10 +143,19 @@ class ParsingConfig(BaseModel):
 class SourcePathConfig(BaseModel):
     """A configured source root for code or documents."""
 
-    path: Path
+    path: Path | None = None
+    repo_url: str | None = None
+    ref: str | None = None
+    subpath: Path | None = None
     repository_name: str | None = None
     type: str | None = None
     tags: list[str] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def require_path_or_repo(self) -> SourcePathConfig:
+        if self.path is None and self.repo_url is None:
+            raise ValueError("source requires path or repo_url")
+        return self
 
 
 class SourcesConfig(BaseModel):
@@ -214,8 +223,10 @@ def _resolve_relative_paths(config: CarsenConfig, base_dir: Path) -> CarsenConfi
     if config.storage.qdrant_path and not config.storage.qdrant_path.is_absolute():
         config.storage.qdrant_path = (base_dir / config.storage.qdrant_path).resolve()
     for source in [*config.sources.code, *config.sources.documents]:
-        if not source.path.is_absolute():
+        if source.path is not None and not source.path.is_absolute():
             source.path = (base_dir / source.path).resolve()
+        if source.subpath is not None and source.subpath.is_absolute():
+            raise ValueError("source.subpath must be relative")
     return config
 
 

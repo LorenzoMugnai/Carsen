@@ -60,6 +60,30 @@ This separates canonical identity from content changes, enabling re-embedding or
 
 The local chunk store is also the fallback retrieval source for `carsen search` and the MCP runtime when dense vector services or models are unavailable.
 
+## Online citations for public Git repositories
+
+For local code roots inside a Git repository, Carsen records best-effort Git metadata on each chunk: the checked-out commit, repository-relative path, and configured `repository_name`. When the repository has a public GitHub or GitLab `origin`, Carsen also adds an online `citation_url` pinned to the exact commit and line span, for example:
+
+- GitHub: `https://github.com/org/repo/blob/<commit>/src/app.py#L10-L20`
+- GitLab: `https://gitlab.com/org/repo/-/blob/<commit>/src/app.py#L10-20`
+
+Private or unrecognized remotes are left as local citations only. Carsen does not invent web URLs when it cannot recognize a public remote.
+
+## Remote public repository sources
+
+You can declare a public Git repository directly as a source. Carsen clones or fetches it into the instance-local cache under `storage.data_directory/remotes/<id>`, checks out `ref` when provided, and indexes `subpath` when provided. Citations are pinned to the actual checked-out commit, not to a moving branch name.
+
+```yaml
+sources:
+  code:
+    - repo_url: https://github.com/org/repo.git
+      ref: main
+      subpath: src
+      repository_name: org/repo
+```
+
+If both `path` and `repo_url` are set on a source, `repo_url` takes precedence and `path` is ignored. Remote clone/fetch failures stop indexing with an actionable Git error rather than silently indexing stale or wrong sources. Treat remote repositories as external code: only index public repositories you intend to cache locally.
+
 ## Re-embedding and deletion
 
 Changing the embedding model does not require reparsing source files if canonical chunks are still valid:

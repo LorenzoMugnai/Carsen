@@ -69,7 +69,21 @@ policy:
 - `indexing.watch` enables foreground/background filesystem watch indexing. `watch_debounce_seconds` coalesces rapid file events, and `watch_embed` also refreshes dense vectors after watched changes.
 - `parsing.documents` controls optional Docling document parsing. PDF parsing defaults to fast text extraction: OCR and table structure are disabled, and backend text is preferred.
 - `sources.code` and `sources.documents` contain entries with `path`, optional `repository_name`, optional `type` and optional `tags`.
+- Sources may also use `repo_url`, `ref` and `subpath` instead of `path` for public Git repositories. Carsen clones/fetches these into the instance cache under `storage.data_directory/remotes/` and pins online citations to the checked-out commit. If both `repo_url` and `path` are present, `repo_url` takes precedence.
 - `policy.allow_external_llm` is metadata for clients; it is not an enforcement boundary.
+
+## Citation behavior
+
+Local source paths are always preserved for citations. For public GitHub and GitLab repositories, Carsen adds `citation_url` metadata with commit-pinned line anchors. Private or unrecognized remotes do not receive online URLs; sparse/exact retrieval still works with local citation text.
+
+```yaml
+sources:
+  code:
+    - repo_url: https://github.com/org/repo.git
+      ref: main
+      subpath: src
+      repository_name: org/repo
+```
 
 ## Running without GPU or Qdrant server
 

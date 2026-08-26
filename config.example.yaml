@@ -53,6 +53,17 @@ parsing:
     force_backend_text: true
 
 sources:
+  # Local source example:
+  # code:
+  #   - path: /path/to/local/repo
+  #     repository_name: org/repo
+  # Remote public Git sources are cloned into this instance's data_directory/remotes cache.
+  # If repo_url and path are both set, repo_url takes precedence.
+  # code:
+  #   - repo_url: https://github.com/org/repo.git
+  #     ref: main
+  #     subpath: src
+  #     repository_name: org/repo
   code: []
   documents: []
 

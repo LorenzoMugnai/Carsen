@@ -85,6 +85,30 @@ models:
     assert cfg.models.embedding.max_seq_length == 128
 
 
+def test_remote_source_fields_load_from_yaml(tmp_path: Path) -> None:
+    path = write_config(
+        tmp_path / "remote.yaml",
+        """
+knowledge:
+  id: remote
+sources:
+  code:
+    - repo_url: https://github.com/example/project.git
+      ref: main
+      subpath: src
+      repository_name: example/project
+""",
+    )
+
+    source = load_config(path).sources.code[0]
+
+    assert source.path is None
+    assert source.repo_url == "https://github.com/example/project.git"
+    assert source.ref == "main"
+    assert source.subpath == Path("src")
+    assert source.repository_name == "example/project"
+
+
 def test_document_parsing_options_load_from_yaml(tmp_path: Path) -> None:
     path = write_config(
         tmp_path / "parse.yaml",

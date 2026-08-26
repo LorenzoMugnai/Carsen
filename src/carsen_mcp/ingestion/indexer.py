@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import shutil
 from dataclasses import dataclass
 from pathlib import Path
@@ -14,7 +15,7 @@ from carsen_mcp.parsers.base import parse_file
 from carsen_mcp.storage import QdrantVectorStore, qdrant_store_from_config
 
 from .discovery import discover_files, sha256_file
-from .git import git_metadata
+from .git import citation_url, clone_or_update, git_metadata, origin_remote, public_remote_url
 from .state import FileRecord, IndexState
 
 DEFAULT_EMBEDDING_BATCH_SIZE = 8
@@ -63,6 +64,46 @@ def _sources(config: CarsenConfig) -> list[SourcePathConfig]:
     return [*config.sources.code, *config.sources.documents]
 
 
+def _safe_remote_id(repo_url: str) -> str:
+    return hashlib.sha256(repo_url.encode("utf-8")).hexdigest()[:16]
+
+
+def resolve_source_path(config: CarsenConfig, source: SourcePathConfig) -> Path:
+    """Return the local path to index, cloning remote sources into instance cache."""
+
+    if source.repo_url:
+        assert config.storage.data_directory is not None
+        checkout = Path(config.storage.data_directory) / "remotes" / _safe_remote_id(source.repo_url)
+        clone_or_update(source.repo_url, checkout, source.ref)
+        return checkout / source.subpath if source.subpath is not None else checkout
+    if source.path is None:
+        raise ValueError("source requires path or repo_url")
+    return source.path
+
+
+def _enrich_chunks(chunks: list[Any], source: SourcePathConfig, file_path: Path) -> None:
+    for chunk in chunks:
+        metadata = chunk.metadata
+        git = git_metadata(file_path)
+        metadata.update(git)
+        if "commit" in git:
+            metadata.setdefault("git_commit", git["commit"])
+        if source.repository_name:
+            metadata["repository_name"] = source.repository_name
+        remote = source.repo_url or origin_remote(file_path)
+        if remote:
+            public = public_remote_url(remote)
+            if public is not None:
+                metadata["repository_url"] = public.web_url
+                metadata["remote_url"] = public.web_url
+                commit = metadata.get("git_commit") or metadata.get("commit")
+                git_path = metadata.get("git_path")
+                if commit and git_path:
+                    url = citation_url(public.web_url, public.provider, commit, git_path, chunk.start_line, chunk.end_line)
+                    if url:
+                        metadata["citation_url"] = url
+
+
 def _chunk_batches[T](items: list[T], size: int) -> list[list[T]]:
     if size < 1:
         raise ValueError("embedding batch size must be positive")
@@ -84,17 +125,20 @@ def index_config(
     store = ChunkStore(data_dir)
     files: list[Path] = []
     roots: dict[str, Path] = {}
+    source_by_file: dict[str, SourcePathConfig] = {}
     for source in _sources(config):
-        if not source.path.exists():
+        source_path = resolve_source_path(config, source)
+        if not source_path.exists():
             continue
         discovered = (
-            [source.path.resolve()]
-            if source.path.is_file()
-            else discover_files(source.path, config.indexing)
+            [source_path.resolve()]
+            if source_path.is_file()
+            else discover_files(source_path, config.indexing)
         )
         for file in discovered:
             files.append(file)
-            roots[str(file)] = source.path.resolve() if source.path.is_dir() else source.path.parent.resolve()
+            roots[str(file)] = source_path.resolve() if source_path.is_dir() else source_path.parent.resolve()
+            source_by_file[str(file)] = source
     files = sorted(set(files))
     _progress(progress, "discovered", files=len(files))
     records = _records(files, progress)
@@ -128,6 +172,7 @@ def index_config(
                 error=str(exc),
             )
             continue
+        _enrich_chunks(chunks, source_by_file.get(path_str) or SourcePathConfig(path=path), path)
         store.replace_file_chunks(path_str, chunks)
         parsed_paths.append(path_str)
         chunk_count += len(chunks)

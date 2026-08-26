@@ -162,7 +162,7 @@ class InstanceRuntime:
         return SearchResult(chunk.chunk_id, 0.0, chunk.text, metadata)
 
     def _serialise_result(self, result: SearchResult) -> dict[str, Any]:
-        return {"chunk_id": result.chunk_id, "score": result.score, "text": result.text, "metadata": result.metadata, "citation": self.formatter.format(result)}
+        return {"chunk_id": result.chunk_id, "score": result.score, "text": result.text, "metadata": result.metadata, "citation": self.formatter.format(result), "citation_url": result.metadata.get("citation_url")}
 
     def _redacted_result(self, result: SearchResult) -> dict[str, Any]:
         return {"chunk_id": result.chunk_id, "score": result.score, "citation": self.formatter.format(result), "source_path": result.metadata.get("source_path"), "symbol": result.metadata.get("symbol")}

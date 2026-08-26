@@ -17,7 +17,7 @@ LogFn = Callable[[str], None]
 def source_roots(config: CarsenConfig) -> list[Path]:
     """Return existing configured source roots to watch."""
 
-    roots = [source.path for source in [*config.sources.code, *config.sources.documents] if source.path.exists()]
+    roots = [source.path for source in [*config.sources.code, *config.sources.documents] if source.path is not None and source.path.exists()]
     return sorted({path.resolve() for path in roots})
 
 

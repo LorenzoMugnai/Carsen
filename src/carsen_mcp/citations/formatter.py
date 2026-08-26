@@ -14,9 +14,12 @@ class CitationFormatter:
     def format(self, item: SearchResult | Chunk) -> str:
         metadata = _metadata(item)
         path = _source_path(item, metadata)
+        online = metadata.get("citation_url")
         if _is_document(metadata, path):
-            return self.document_citation(path, metadata)
-        return self.code_citation(item, path, metadata)
+            local = self.document_citation(path, metadata)
+        else:
+            local = self.code_citation(item, path, metadata)
+        return f"{local} ({online})" if online else local
 
     def code_citation(self, item: SearchResult | Chunk, path: str | None, metadata: dict[str, Any]) -> str:
         repo = metadata.get("repository") or metadata.get("repository_name")

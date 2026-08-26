@@ -34,13 +34,25 @@ def populate(config: CarsenConfig, chunks: list[Chunk]) -> None:
 
 def test_runtime_knowledge_info_searches_and_symbol(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     config = cfg(tmp_path, "alpha")
-    detector = chunk("alpha", "src/detector.py", "Detector.process", "def process detection", 0, source_type="code", language="python", kind="method")
+    detector = chunk(
+        "alpha",
+        "src/detector.py",
+        "Detector.process",
+        "def process detection",
+        0,
+        source_type="code",
+        language="python",
+        kind="method",
+        citation_url="https://github.com/org/repo/blob/abc/src/detector.py#L1-L5",
+    )
     guide = chunk("alpha", "docs/guide.md", None, "process user guide", 0, source_type="documents", document_type="markdown", heading="Guide", kind="markdown")
     populate(config, [detector, guide])
     runtime = InstanceRuntime(config)
 
     assert runtime.knowledge_info()["chunk_count"] == 2
-    assert runtime.search_code("process")[0]["metadata"]["source_path"] == "src/detector.py"
+    code_result = runtime.search_code("process")[0]
+    assert code_result["metadata"]["source_path"] == "src/detector.py"
+    assert code_result["citation_url"] == "https://github.com/org/repo/blob/abc/src/detector.py#L1-L5"
     assert runtime.search_documents("guide")[0]["metadata"]["source_path"] == "docs/guide.md"
     assert runtime.find_symbol("Detector.process")[0]["chunk_id"] == detector.chunk_id
     stderr = capsys.readouterr().err
