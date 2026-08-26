@@ -142,7 +142,7 @@ def _preview(text: str, length: int = 120) -> str:
 
 
 def _resolve_config(name: str | None, config: Path | None) -> CarsenConfig:
-    """Resolve either an explicit YAML path or a registered knowledge name."""
+    """Resolve an explicit path, a local config, or a registered knowledge name."""
 
     if config is not None:
         return load_config(config)
@@ -150,9 +150,19 @@ def _resolve_config(name: str | None, config: Path | None) -> CarsenConfig:
         raise typer.BadParameter("provide a registered NAME or --config PATH")
     from .registry import config_path_for
 
+    local_path = Path(name).expanduser()
+    if local_path.is_file():
+        return load_config(local_path)
+
+    local_config = Path.cwd() / f"{name}.yaml"
+    if local_config.is_file():
+        return load_config(local_config)
+
     path = config_path_for(name)
     if not path.exists():
-        raise typer.BadParameter(f"configuration '{name}' was not found at {path}")
+        raise typer.BadParameter(
+            f"configuration '{name}' was not found in the current directory ({local_config}) or at {path}"
+        )
     return load_config(path)
 
 

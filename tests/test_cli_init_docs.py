@@ -96,6 +96,31 @@ sources:
     assert "Deleted stale file entries: 0." in result.stderr
 
 
+def test_cli_resolves_config_path_and_local_name_before_registry(tmp_path: Path, monkeypatch) -> None:
+    config = tmp_path / "ariel-fury.yaml"
+    config.write_text(
+        """
+knowledge:
+  id: ariel-fury
+sources:
+  code: []
+  documents: []
+""",
+        encoding="utf-8",
+    )
+    registry = tmp_path / "registry"
+    monkeypatch.setenv("CARSEN_CONFIG_DIR", str(registry))
+    monkeypatch.chdir(tmp_path)
+
+    path_result = CliRunner().invoke(app, ["validate", "ariel-fury.yaml"])
+    name_result = CliRunner().invoke(app, ["validate", "ariel-fury"])
+
+    assert path_result.exit_code == 0, path_result.stdout
+    assert name_result.exit_code == 0, name_result.stdout
+    assert "Configuration 'ariel-fury' is valid." in path_result.stdout
+    assert "Configuration 'ariel-fury' is valid." in name_result.stdout
+
+
 def test_index_cli_warns_and_succeeds_when_embedding_fails(tmp_path: Path, monkeypatch) -> None:
     config = tmp_path / "carsen.yaml"
     config.write_text(
