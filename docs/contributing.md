@@ -4,7 +4,7 @@ Carsen grows best through small, tested changes that preserve local-first retrie
 
 ## Start here
 
-The canonical repository guide is [`CONTRIBUTING.md`](../CONTRIBUTING.md). Use it for setup, workflow, quality gates, pull request expectations and release steps.
+The canonical repository guide is `CONTRIBUTING.md` in the repository root. Use it for setup, workflow, quality gates, pull request expectations and release steps.
 
 ## quality gates
 
