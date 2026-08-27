@@ -69,6 +69,7 @@ nav:
       - Troubleshooting: troubleshooting.md
   - Development:
       - Architecture: architecture.md
+      - Contributing: contributing.md
       - Development setup: development.md
       - Extending Carsen: extending.md
       - ADRs:

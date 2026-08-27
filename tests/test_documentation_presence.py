@@ -54,6 +54,35 @@ def test_mkdocs_site_configuration_exists() -> None:
     assert "concepts/qdrant.md" in text
 
 
+def test_contributing_documentation_is_present_and_linked() -> None:
+    root_guide = ROOT / "CONTRIBUTING.md"
+    docs_guide = ROOT / "docs" / "contributing.md"
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    mkdocs = (ROOT / "mkdocs.yml").read_text(encoding="utf-8")
+
+    assert root_guide.exists()
+    assert docs_guide.exists()
+
+    root_text = root_guide.read_text(encoding="utf-8")
+    docs_text = docs_guide.read_text(encoding="utf-8")
+    required_phrases = [
+        "uv pip install -e '.[dev]'",
+        "python -m ruff check .",
+        "PYTHONPATH=src python -m mypy",
+        "python -m pytest",
+        "Pull request checklist",
+        "Release checklist",
+        "tag-based versioning",
+    ]
+    for phrase in required_phrases:
+        assert phrase in root_text
+    for phrase in ["Carsen", "quality gates", "tag-based versioning", "Release checklist"]:
+        assert phrase in docs_text
+
+    assert "CONTRIBUTING.md" in readme
+    assert "contributing.md" in mkdocs
+
+
 def test_didactic_documentation_pages_exist() -> None:
     required = [
         ROOT / "docs/quickstart.md",

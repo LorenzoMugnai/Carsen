@@ -11,7 +11,7 @@
     <img alt="GitHub Actions CI" src="https://github.com/LorenzoMugnai/Carsen/actions/workflows/ci.yml/badge.svg?branch=main">
   </a>
   <img alt="Python 3.12+" src="https://img.shields.io/badge/Python-3.12%2B-3776AB?style=flat-square&logo=python&logoColor=white">
-  <img alt="carsen-mcp v0.1.0" src="https://img.shields.io/badge/carsen--mcp-v0.1.0-7c3aed?style=flat-square">
+  <img alt="carsen-mcp package" src="https://img.shields.io/badge/carsen--mcp-tag--versioned-7c3aed?style=flat-square">
   <img alt="MCP enabled" src="https://img.shields.io/badge/MCP-enabled-111827?style=flat-square">
   <img alt="Ruff" src="https://img.shields.io/badge/Ruff-linting-2C6BED?style=flat-square&logo=ruff&logoColor=white">
   <img alt="mypy" src="https://img.shields.io/badge/mypy-checked-2A6DB2?style=flat-square&logo=mypy&logoColor=white">
@@ -27,6 +27,7 @@ Carsen is a local-first Model Context Protocol (MCP) knowledge engine for servin
 
 - [Quickstart for academic users](docs/quickstart.md)
 - [Core concepts](docs/concepts.md)
+- [Contributing guide](CONTRIBUTING.md)
 - [Full documentation index](docs/index.md)
 
 To build the website locally:
