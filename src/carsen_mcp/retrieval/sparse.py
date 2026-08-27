@@ -89,6 +89,13 @@ class SparseRetriever:
             total += 3.0
         if raw_query in path:
             total += 1.0
+        xml_path = str(doc.result.metadata.get("xml_path") or "")
+        if doc.result.metadata.get("document_type") == "xml" and "/" in xml_path:
+            xml_path_tokens = set(tokenise(xml_path))
+            if any(token in xml_path_tokens for token in query_tokens):
+                total += 1.5
+            if {"pixel", "pixels", "pix"}.intersection(query_tokens) and {"pixel", "pixels", "pix"}.intersection(doc.tokens):
+                total += 1.5
         return total
 
 
@@ -100,4 +107,4 @@ def _chunk_to_result(chunk: Chunk) -> SearchResult:
 
 def _document_tokens(result: SearchResult) -> list[str]:
     indexed_text = result.text[:MAX_INDEXED_TEXT_CHARS]
-    return tokenise("\n".join([indexed_text, str(result.metadata.get("symbol") or ""), str(result.metadata.get("source_path") or ""), str(result.metadata.get("kind") or "")]))
+    return tokenise("\n".join([indexed_text, str(result.metadata.get("symbol") or ""), str(result.metadata.get("xml_path") or ""), str(result.metadata.get("source_path") or ""), str(result.metadata.get("kind") or "")]))

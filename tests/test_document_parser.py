@@ -123,6 +123,34 @@ def test_xml_configs_are_indexed_as_document_content(tmp_path: Path) -> None:
     assert chunks[0].metadata["document_type"] == "xml"
 
 
+def test_xml_configs_chunk_repeated_elements_with_line_metadata(tmp_path: Path) -> None:
+    xml = tmp_path / "payload.xml"
+    xml.write_text(
+        """<root>
+  <type>spectrometer</type>
+  <detector>
+    <spatial_pix>64</spatial_pix>
+    <spectral_pix>130</spectral_pix>
+  </detector>
+  <readout>
+    <readout_frequency unit="Hz">10</readout_frequency>
+  </readout>
+</root>
+""",
+        encoding="utf-8",
+    )
+
+    chunks = parse_file(xml, "kb", tmp_path)
+    detector = next(chunk for chunk in chunks if chunk.metadata.get("xml_path") == "root/detector")
+
+    assert len(chunks) >= 3
+    assert detector.symbol == "root/detector"
+    assert detector.start_line == 3
+    assert detector.end_line == 6
+    assert "<spatial_pix>64</spatial_pix>" in detector.text
+    assert "<readout>" not in detector.text
+
+
 def test_pdf_docling_converter_uses_fast_options(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     captured: dict[str, Any] = {}
 

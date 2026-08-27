@@ -131,6 +131,39 @@ def test_runtime_reuses_sparse_retriever_between_tool_calls(tmp_path: Path, monk
     assert calls == 1
 
 
+def test_runtime_xml_fact_query_returns_focused_detector_chunk(tmp_path: Path) -> None:
+    config = cfg(tmp_path, "alpha")
+    target = Chunk(
+        "alpha",
+        "payload/airs_ch1.xml",
+        "document",
+        "root/detector",
+        10,
+        14,
+        "<detector>\n  <spatial_pix>64</spatial_pix>\n  <spectral_pix>130</spectral_pix>\n</detector>",
+        order=1,
+        metadata={"source_path": "payload/airs_ch1.xml", "path": "payload/airs_ch1.xml", "source_type": "documents", "document_type": "xml", "xml_path": "root/detector"},
+    )
+    broader = Chunk(
+        "alpha",
+        "payload/airs_ch1.xml",
+        "document",
+        "root",
+        1,
+        20,
+        "<root> lots of optics text AIRS CH1 detector pixels spatial spectral </root>",
+        order=0,
+        metadata={"source_path": "payload/airs_ch1.xml", "path": "payload/airs_ch1.xml", "source_type": "documents", "document_type": "xml", "xml_path": "root"},
+    )
+    populate(config, [broader, target])
+
+    result = InstanceRuntime(config).search_documents("numero di pixel di airs ch1", limit=1)[0]
+
+    assert result["chunk_id"] == target.chunk_id
+    assert "<spectral_pix>130</spectral_pix>" in result["text"]
+    assert result["metadata"]["xml_path"] == "root/detector"
+
+
 def test_runtime_read_source_expansion_and_metadata(tmp_path: Path) -> None:
     config = cfg(tmp_path, "alpha")
     chunks = [

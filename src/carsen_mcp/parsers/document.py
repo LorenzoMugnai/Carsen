@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib
+import re
 from functools import lru_cache
 from html.parser import HTMLParser
 from pathlib import Path
@@ -20,6 +21,7 @@ class ParserUnavailableError(RuntimeError):
 
 DOCUMENT_EXTENSIONS = {".pdf", ".docx", ".html", ".htm", ".xml"}
 BINARY_EXTENSIONS = {".pdf", ".docx"}
+XML_TAG_RE = re.compile(r"<\s*(/)?\s*([A-Za-z_][\w:.-]*)([^>]*)>")
 
 
 def parse_document(
@@ -200,4 +202,52 @@ def _parse_html_fallback(path: Path, knowledge_id: str, source: str) -> list[Chu
 
 def _parse_xml_fallback(path: Path, knowledge_id: str, source: str) -> list[Chunk]:
     text = path.read_text(encoding="utf-8", errors="replace")
-    return parse_markdown_text(text, knowledge_id, source, {"path": source, "source_path": source, "source_type": "documents", "document_type": "xml"}, kind="document")
+    metadata = {"path": source, "source_path": source, "source_type": "documents", "document_type": "xml"}
+    chunks = _parse_xml_element_chunks(text, knowledge_id, source, metadata)
+    return chunks or parse_markdown_text(text, knowledge_id, source, metadata, kind="document")
+
+
+def _parse_xml_element_chunks(text: str, knowledge_id: str, source: str, base_metadata: dict[str, Any]) -> list[Chunk]:
+    lines = text.splitlines()
+    stack: list[dict[str, Any]] = []
+    elements: list[dict[str, Any]] = []
+
+    for line_number, line in enumerate(lines, 1):
+        for match in XML_TAG_RE.finditer(line):
+            closing, raw_name, suffix = match.groups()
+            if raw_name.startswith(("?", "!")):
+                continue
+            name = raw_name.split(":")[-1]
+            if closing:
+                for index in range(len(stack) - 1, -1, -1):
+                    if stack[index]["name"] == name:
+                        element = stack.pop(index)
+                        element["end_line"] = line_number
+                        if element["has_child"]:
+                            elements.append(element)
+                        break
+                continue
+
+            if stack:
+                stack[-1]["has_child"] = True
+            path = "/".join([*(str(item["name"]) for item in stack), name])
+            self_closing = suffix.strip().endswith("/")
+            if not self_closing:
+                stack.append({"name": name, "xml_path": path, "start_line": line_number, "end_line": line_number, "has_child": False})
+
+    end_line = max(1, len(lines))
+    while stack:
+        element = stack.pop()
+        element["end_line"] = end_line
+        if element["has_child"]:
+            elements.append(element)
+
+    elements.sort(key=lambda item: (int(item["start_line"]), int(item["end_line"])))
+    chunks: list[Chunk] = []
+    for order, element in enumerate(elements):
+        start_line = int(element["start_line"])
+        end = int(element["end_line"])
+        xml_path = str(element["xml_path"])
+        metadata = {**base_metadata, "xml_path": xml_path}
+        chunks.append(Chunk(knowledge_id, source, "document", xml_path, start_line, end, "\n".join(lines[start_line - 1 : end]), order, metadata))
+    return chunks
