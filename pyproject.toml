@@ -1,10 +1,10 @@
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling", "hatch-vcs"]
 build-backend = "hatchling.build"
 
 [project]
 name = "carsen-mcp"
-version = "0.1.0"
+dynamic = ["version"]
 description = "Carsen MCP code skeleton"
 requires-python = ">=3.12"
 dependencies = [
@@ -38,6 +38,10 @@ carsen = "carsen_mcp.cli:app"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/carsen_mcp"]
+
+[tool.hatch.version]
+source = "vcs"
+fallback-version = "0.0.0"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
