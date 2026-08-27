@@ -11,8 +11,9 @@ This semi-generated reference mirrors the current Typer command surface used by 
 
 ## Index and retrieval
 
-- `carsen index NAME [--force] [--embed]` parses sources into canonical chunks, optionally embedding into Qdrant. If the optional dense phase fails, indexing still succeeds with a warning and sparse/exact search remains available.
+- `carsen index NAME [--force] [--embed] [--yes]` parses sources into canonical chunks, optionally embedding into Qdrant. If the optional dense phase fails, indexing still succeeds with a warning and sparse/exact search remains available.
 - `carsen index NAME` is the portable baseline: it does not require GPU, embeddings or Qdrant, and it prepares the MCP tools that read from the local chunk store.
+- Interactive indexing prints a compact noisy-file preflight for common binary/data, archive, log/cache/build and media categories. Selecting category numbers persists matching ignores in the YAML config before indexing. Use `--yes` to skip the prompt in scripts or CI.
 - `carsen watch NAME` watches configured sources and indexes after debounced filesystem changes.
 - `carsen search NAME QUERY` searches a local instance chunk store.
 - `carsen search --config PATH QUERY` searches an explicit configuration.

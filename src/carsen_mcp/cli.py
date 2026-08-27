@@ -18,7 +18,7 @@ from rich.progress import (
     TimeRemainingColumn,
 )
 
-from .config import CarsenConfig, load_config
+from .config import CarsenConfig, dump_config, load_config
 from .registry import (
     create_config,
     create_self_docs_config,
@@ -166,6 +166,26 @@ def _resolve_config(name: str | None, config: Path | None) -> CarsenConfig:
     return load_config(path)
 
 
+def _resolve_config_path(name: str | None, config: Path | None) -> Path | None:
+    """Resolve the YAML path for commands that need to persist config changes."""
+
+    if config is not None:
+        return config.expanduser()
+    if name is None:
+        return None
+    from .registry import config_path_for
+
+    local_path = Path(name).expanduser()
+    if local_path.is_file():
+        return local_path
+
+    local_config = Path.cwd() / f"{name}.yaml"
+    if local_config.is_file():
+        return local_config
+    path = config_path_for(name)
+    return path if path.exists() else None
+
+
 def _embedding_failure(exc: Exception) -> NoReturn:
     typer.echo(
         "Embedding failed: "
@@ -211,6 +231,99 @@ def _dense_warning(config: CarsenConfig, error: str) -> None:
         f"Vector store target: {qdrant_target}.",
         err=True,
     )
+
+
+_NOISY_FILE_CATEGORIES: tuple[tuple[str, tuple[str, ...], tuple[str, ...]], ...] = (
+    ("binary/data", (".h5", ".fits", ".npy", ".npz", ".pkl", ".bin"), ()),
+    ("archives", (".zip", ".tar", ".gz", ".tgz", ".whl"), ()),
+    ("logs/cache/build", (".cache",), ("htmlcov", "_build", ".ipynb_checkpoints")),
+    ("logs", (".log",), ()),
+    ("images/media", (".png", ".jpg", ".jpeg", ".gif", ".webp", ".mp4", ".mov", ".avi"), ()),
+)
+
+
+def _format_bytes(size: int) -> str:
+    return f"{size} B"
+
+
+def _review_noisy_files(cfg: CarsenConfig, config_path: Path | None, yes: bool) -> None:
+    """Warn about common noisy files and optionally persist selected ignores."""
+
+    from .ingestion.discovery import discover_files
+
+    examples: list[tuple[int, str, tuple[str, ...], tuple[str, ...], int, int, int, list[str]]] = []
+    ignored_exts = set(cfg.indexing.ignored_extensions)
+    ignored_dirs = set(cfg.indexing.ignored_directories)
+    for label, extensions, directories in _NOISY_FILE_CATEGORIES:
+        category_exts = tuple(ext for ext in extensions if ext not in ignored_exts)
+        category_dirs = tuple(directory for directory in directories if directory not in ignored_dirs)
+        if not category_exts and not category_dirs:
+            continue
+        names: list[str] = []
+        file_count = 0
+        directory_count = 0
+        total_bytes = 0
+        for source in [*cfg.sources.code, *cfg.sources.documents]:
+            if source.path is None or not source.path.exists():
+                continue
+            if category_exts:
+                for path in discover_files(source.path, cfg.indexing):
+                    if path.suffix not in category_exts:
+                        continue
+                    file_count += 1
+                    total_bytes += path.stat().st_size
+                    if path.name not in names and len(names) < 3:
+                        names.append(path.name)
+            if category_dirs:
+                for path in source.path.rglob("*"):
+                    if not path.is_dir() or path.name not in category_dirs:
+                        continue
+                    directory_count += 1
+                    if path.name not in names and len(names) < 3:
+                        names.append(path.name)
+        if file_count or directory_count:
+            examples.append((len(examples) + 1, label, category_exts, category_dirs, file_count, directory_count, total_bytes, names))
+
+    if not examples:
+        return
+
+    typer.echo("Potential indexing noise:", err=True)
+    for index, label, extensions, _directories, file_count, directory_count, total_bytes, names in examples:
+        parts: list[str] = []
+        if file_count:
+            parts.append(f"{file_count} file(s)")
+            parts.append(_format_bytes(total_bytes))
+        if directory_count:
+            parts.append(f"{directory_count} director{'y' if directory_count == 1 else 'ies'}")
+        if extensions:
+            parts.append(f"extensions: {', '.join(extensions)}")
+        if names:
+            parts.append(f"examples: {', '.join(names)}")
+        typer.echo(f"{index}. {label}: {'; '.join(parts)}", err=True)
+
+    if yes:
+        typer.echo("Use interactive indexing without --yes to update ignored_extensions.", err=True)
+        return
+
+    selected = typer.prompt("Enter category numbers to ignore, comma-separated (blank to skip)", default="", show_default=False, err=True)
+    selected_numbers = {int(part.strip()) for part in selected.replace(",", " ").split() if part.strip().isdigit()}
+    if not selected_numbers:
+        return
+
+    added = False
+    for index, _label, extensions, directories, _file_count, _directory_count, _total_bytes, _names in examples:
+        if index not in selected_numbers:
+            continue
+        for extension in extensions:
+            if extension not in cfg.indexing.ignored_extensions:
+                cfg.indexing.ignored_extensions.append(extension)
+                added = True
+        for directory in directories:
+            if directory not in cfg.indexing.ignored_directories:
+                cfg.indexing.ignored_directories.append(directory)
+                added = True
+    if added and config_path is not None:
+        config_path.write_text(dump_config(cfg), encoding="utf-8")
 
 
 @app.command()
@@ -424,12 +537,14 @@ def index(
     config: Annotated[Path | None, typer.Option("--config", help="Explicit YAML configuration to index.")] = None,
     force: Annotated[bool, typer.Option(help="Reprocess all configured sources when indexing is implemented.")] = False,
     embed: Annotated[bool, typer.Option(help="Embed canonical chunks and upsert the configured Qdrant collection.")] = False,
+    yes: Annotated[bool, typer.Option("--yes", help="Skip interactive noisy-file ignore prompts.")] = False,
 ) -> None:
     """Index configured sources incrementally."""
 
     from .ingestion.indexer import EmbeddingIndexError, VectorIndexError, index_config
 
     cfg = _resolve_config(name, config)
+    _review_noisy_files(cfg, _resolve_config_path(name, config), yes)
     try:
         with _IndexProgress() as progress:
             report = index_config(cfg, force=force, embed=embed, progress=progress)

@@ -7,6 +7,7 @@ carsen index NAME
 carsen index --config path/to/config.yaml
 carsen index NAME --force
 carsen index NAME --embed
+carsen index NAME --yes
 carsen watch NAME
 ```
 
@@ -41,6 +42,8 @@ This flow is similar to building a catalogue for a research archive. Carsen firs
 ## Discovery
 
 Defaults ignore common generated or dependency directories such as `.git`, `.venv`, `node_modules`, `__pycache__`, `build` and `dist`. Binary extension ignores include `.pyc`, `.so`, `.dll` and `.dylib`. Symlink following is disabled by default.
+
+Before an interactive `carsen index` run, Carsen also scans configured source roots for common indexing noise such as binary/data files, archives, logs, cache/build directories and media assets. The preflight output is compact: categories are numbered and summarized with counts, total size, top extensions and a few example names rather than every matching file. Enter category numbers to add their extensions or directory names to the configuration's `indexing.ignored_extensions` and `indexing.ignored_directories`; Carsen writes the updated YAML and indexes with those ignores immediately. Use `--yes` for scripts or CI to skip the prompt while still printing the compact warning.
 
 ## Watch indexing
 

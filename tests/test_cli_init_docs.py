@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import yaml
 from typer.testing import CliRunner
 
 from carsen_mcp.cli import app
@@ -94,6 +95,190 @@ sources:
     assert "Classified files: new=1 unchanged=0 changed=0 deleted=0 to_parse=1" in result.stderr
     assert "Parsing 1/1:" in result.stderr
     assert "Deleted stale file entries: 0." in result.stderr
+
+
+def test_index_cli_reviews_noisy_files_and_persists_selected_ignores(tmp_path: Path, monkeypatch) -> None:
+    src = tmp_path / "src"
+    src.mkdir()
+    (src / "keep.py").write_text("def helper():\n    return 1\n", encoding="utf-8")
+    (src / "run.log").write_text("log\n" * 100, encoding="utf-8")
+    (src / "image.png").write_bytes(b"PNG" * 100)
+    config = tmp_path / "carsen.yaml"
+    data = tmp_path / "data"
+    config.write_text(
+        f"""
+knowledge:
+  id: cli-kb
+storage:
+  data_directory: {data}
+sources:
+  code:
+    - path: {src}
+  documents: []
+""",
+        encoding="utf-8",
+    )
+    calls: list[list[str]] = []
+
+    def fake_index_config(config, force: bool = False, embed: bool = False, progress=None):
+        calls.append(list(config.indexing.ignored_extensions))
+
+        class Report:
+            new = 1
+            unchanged = 0
+            changed = 0
+            deleted = 0
+            chunks = 1
+            dense_error = None
+
+        return Report()
+
+    monkeypatch.setattr("carsen_mcp.ingestion.indexer.index_config", fake_index_config)
+
+    result = CliRunner().invoke(app, ["index", "--config", str(config)], input="1\n")
+
+    assert result.exit_code == 0, result.stdout + result.stderr
+    assert "Potential indexing noise:" in result.stderr
+    assert "1. logs" in result.stderr
+    assert "2. images/media" in result.stderr
+    assert "run.log" in result.stderr
+    assert "image.png" in result.stderr
+    assert ".log" in calls[0]
+    assert ".png" not in calls[0]
+    saved = yaml.safe_load(config.read_text(encoding="utf-8"))
+    assert ".log" in saved["indexing"]["ignored_extensions"]
+    assert ".png" not in saved["indexing"].get("ignored_extensions", [])
+
+
+def test_index_cli_yes_skips_noisy_file_prompt(tmp_path: Path, monkeypatch) -> None:
+    src = tmp_path / "src"
+    src.mkdir()
+    (src / "run.log").write_text("log\n", encoding="utf-8")
+    config = tmp_path / "carsen.yaml"
+    config.write_text(
+        f"""
+knowledge:
+  id: cli-kb
+sources:
+  code:
+    - path: {src}
+  documents: []
+""",
+        encoding="utf-8",
+    )
+
+    def fake_index_config(config, force: bool = False, embed: bool = False, progress=None):
+        class Report:
+            new = 1
+            unchanged = 0
+            changed = 0
+            deleted = 0
+            chunks = 1
+            dense_error = None
+
+        return Report()
+
+    monkeypatch.setattr("carsen_mcp.ingestion.indexer.index_config", fake_index_config)
+
+    result = CliRunner().invoke(app, ["index", "--config", str(config), "--yes"])
+
+    assert result.exit_code == 0, result.stdout + result.stderr
+    assert "Potential indexing noise:" in result.stderr
+    assert "Use interactive indexing without --yes to update ignored_extensions." in result.stderr
+    saved = yaml.safe_load(config.read_text(encoding="utf-8"))
+    assert "indexing" not in saved
+
+
+def test_index_cli_noisy_review_summarizes_counts_sizes_and_directories(tmp_path: Path, monkeypatch) -> None:
+    src = tmp_path / "src"
+    cache = src / "htmlcov"
+    cache.mkdir(parents=True)
+    (src / "array.npy").write_bytes(b"0" * 20)
+    (src / "cube.fits").write_bytes(b"1" * 30)
+    (src / "payload.zip").write_bytes(b"2" * 40)
+    (cache / "index.html").write_text("coverage report", encoding="utf-8")
+    config = tmp_path / "carsen.yaml"
+    config.write_text(
+        f"""
+knowledge:
+  id: cli-kb
+sources:
+  code:
+    - path: {src}
+  documents: []
+""",
+        encoding="utf-8",
+    )
+
+    def fake_index_config(config, force: bool = False, embed: bool = False, progress=None):
+        class Report:
+            new = 1
+            unchanged = 0
+            changed = 0
+            deleted = 0
+            chunks = 1
+            dense_error = None
+
+        return Report()
+
+    monkeypatch.setattr("carsen_mcp.ingestion.indexer.index_config", fake_index_config)
+
+    result = CliRunner().invoke(app, ["index", "--config", str(config)], input="1 3\n")
+
+    assert result.exit_code == 0, result.stdout + result.stderr
+    assert "1. binary/data" in result.stderr
+    assert "2 file(s)" in result.stderr
+    assert "50 B" in result.stderr
+    assert ".fits" in result.stderr
+    assert ".npy" in result.stderr
+    assert "2. archives" in result.stderr
+    assert "payload.zip" in result.stderr
+    assert "3. logs/cache/build" in result.stderr
+    assert "1 director" in result.stderr
+    assert "htmlcov" in result.stderr
+    saved = yaml.safe_load(config.read_text(encoding="utf-8"))
+    assert ".fits" in saved["indexing"]["ignored_extensions"]
+    assert ".npy" in saved["indexing"]["ignored_extensions"]
+    assert ".zip" not in saved["indexing"]["ignored_extensions"]
+    assert "htmlcov" in saved["indexing"]["ignored_directories"]
+
+
+def test_index_cli_persists_noisy_ignores_for_named_local_config(tmp_path: Path, monkeypatch) -> None:
+    src = tmp_path / "src"
+    src.mkdir()
+    (src / "run.log").write_text("log\n", encoding="utf-8")
+    config = tmp_path / "cli-kb.yaml"
+    config.write_text(
+        f"""
+knowledge:
+  id: cli-kb
+sources:
+  code:
+    - path: {src}
+  documents: []
+""",
+        encoding="utf-8",
+    )
+
+    def fake_index_config(config, force: bool = False, embed: bool = False, progress=None):
+        class Report:
+            new = 1
+            unchanged = 0
+            changed = 0
+            deleted = 0
+            chunks = 1
+            dense_error = None
+
+        return Report()
+
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr("carsen_mcp.ingestion.indexer.index_config", fake_index_config)
+
+    result = CliRunner().invoke(app, ["index", "cli-kb"], input="1\n")
+
+    assert result.exit_code == 0, result.stdout + result.stderr
+    saved = yaml.safe_load(config.read_text(encoding="utf-8"))
+    assert ".log" in saved["indexing"]["ignored_extensions"]
 
 
 def test_cli_resolves_config_path_and_local_name_before_registry(tmp_path: Path, monkeypatch) -> None:

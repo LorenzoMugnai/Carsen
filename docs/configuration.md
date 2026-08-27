@@ -111,6 +111,8 @@ carsen index NAME
 
 This command builds the local chunk store. It is enough for MCP tools such as `search_knowledge`, `search_code`, `find_symbol`, `read_source` and related-source lookup.
 
+Interactive indexing performs a compact noisy-file preflight before parsing. If Carsen finds likely low-value formats such as binary/data files, archives, logs, cache/build directories or media assets, it shows numbered categories with counts, total size, extensions and a few examples. Select categories to add them to `indexing.ignored_extensions` or `indexing.ignored_directories`; Carsen persists the updated YAML and applies the ignores to the same run. Use `carsen index NAME --yes` to skip the prompt for automation.
+
 Dense indexing is an optional extra:
 
 ```bash
