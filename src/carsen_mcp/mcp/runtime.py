@@ -35,10 +35,14 @@ class InstanceRuntime:
         self.formatter = CitationFormatter()
         self.embedding_provider = embedding_provider
         self.vector_store = vector_store
+        self._chunks_cache: list[Chunk] | None = None
+        self._sparse_cache: SparseRetriever | None = None
 
     @property
     def chunks(self) -> list[Chunk]:
-        return [chunk for chunk in self.store.load_all_chunks() if chunk.knowledge_id == self.config.knowledge.id]
+        if self._chunks_cache is None:
+            self._chunks_cache = [chunk for chunk in self.store.load_all_chunks() if chunk.knowledge_id == self.config.knowledge.id]
+        return self._chunks_cache
 
     def knowledge_info(self) -> dict[str, Any]:
         self._log_tool_call("knowledge_info")
@@ -116,7 +120,10 @@ class InstanceRuntime:
         chunks = self.chunks
         if filters:
             chunks = [chunk for chunk in chunks if all(chunk.metadata.get(k) == v for k, v in filters.items())]
-        return SparseRetriever(chunks=chunks)
+            return SparseRetriever(chunks=chunks)
+        if self._sparse_cache is None:
+            self._sparse_cache = SparseRetriever(chunks=chunks)
+        return self._sparse_cache
 
     def _search(self, query: str, limit: int, filters: dict[str, Any] | None) -> list[SearchResult]:
         return self._search_with_debug(query, limit, filters)[0]

@@ -11,7 +11,7 @@ from typing import Any, Protocol
 from carsen_mcp.chunks.store import ChunkStore
 from carsen_mcp.config import CarsenConfig, SourcePathConfig
 from carsen_mcp.embeddings import EmbeddingProvider, embedding_provider_from_config
-from carsen_mcp.parsers.base import parse_file
+from carsen_mcp.parsers.base import parse_file, rel_path
 from carsen_mcp.storage import QdrantVectorStore, qdrant_store_from_config
 
 from .discovery import discover_files, sha256_file
@@ -140,6 +140,8 @@ def index_config(
             roots[str(file)] = source_path.resolve() if source_path.is_dir() else source_path.parent.resolve()
             source_by_file[str(file)] = source
     files = sorted(set(files))
+    allowed_sources = {str(path) for path in files}
+    allowed_sources.update(rel_path(path, roots.get(str(path))) for path in files)
     _progress(progress, "discovered", files=len(files))
     records = _records(files, progress)
     status = state.classify(records)
@@ -188,7 +190,9 @@ def index_config(
     _progress(progress, "parse_complete", total=len(to_parse), chunks=chunk_count)
     for path_str in status["deleted"]:
         store.delete_file_chunks(path_str)
-    _progress(progress, "deleted", files=len(status["deleted"]))
+    pruned = store.prune_unknown_sources(config.knowledge.id, allowed_sources)
+    deleted_count = len(status["deleted"]) + pruned
+    _progress(progress, "deleted", files=deleted_count)
     state.upsert([by_path[p] for p in parsed_paths if p in by_path])
     state.delete(status["deleted"])
     dense_error: str | None = None
@@ -207,7 +211,7 @@ def index_config(
         len(status["new"]),
         len(status["unchanged"]),
         len(status["changed"]),
-        len(status["deleted"]),
+        deleted_count,
         chunk_count,
         dense_error,
     )

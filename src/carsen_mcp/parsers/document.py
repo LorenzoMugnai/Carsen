@@ -18,7 +18,7 @@ class ParserUnavailableError(RuntimeError):
     """Raised when an optional parser dependency is unavailable."""
 
 
-DOCUMENT_EXTENSIONS = {".pdf", ".docx", ".html", ".htm"}
+DOCUMENT_EXTENSIONS = {".pdf", ".docx", ".html", ".htm", ".xml"}
 BINARY_EXTENSIONS = {".pdf", ".docx"}
 
 
@@ -31,6 +31,8 @@ def parse_document(
     """Parse PDF, DOCX or HTML documents, using Docling when available."""
     suffix = path.suffix.lower()
     source = rel_path(path, source_root)
+    if suffix == ".xml":
+        return _parse_xml_fallback(path, knowledge_id, source)
     if suffix == ".pdf":
         fast_chunks = _parse_pdf_text(path, knowledge_id, source)
         if fast_chunks is not None:
@@ -194,3 +196,8 @@ def _parse_html_fallback(path: Path, knowledge_id: str, source: str) -> list[Chu
     parser.feed(path.read_text(encoding="utf-8", errors="replace"))
     markdown = " ".join(parser.parts).replace(" \n ", "\n")
     return parse_markdown_text(markdown, knowledge_id, source, {"path": source, "source_path": source, "source_type": "documents", "document_type": "html"}, kind="document")
+
+
+def _parse_xml_fallback(path: Path, knowledge_id: str, source: str) -> list[Chunk]:
+    text = path.read_text(encoding="utf-8", errors="replace")
+    return parse_markdown_text(text, knowledge_id, source, {"path": source, "source_path": source, "source_type": "documents", "document_type": "xml"}, kind="document")

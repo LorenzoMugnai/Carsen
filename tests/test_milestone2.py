@@ -88,6 +88,49 @@ def test_indexer_persists_chunks_and_reports(tmp_path: Path) -> None:
     assert list((tmp_path / "data" / "chunks").glob("*.jsonl"))
 
 
+def test_indexer_removes_chunks_for_files_that_become_ignored(tmp_path: Path) -> None:
+    src = tmp_path / "src"
+    src.mkdir()
+    ignored_later = src / "large.h5"
+    ignored_later.write_text("huge text artifact", encoding="utf-8")
+    cfg = CarsenConfig(
+        knowledge=KnowledgeConfig(id="kb"),
+        storage=StorageConfig(data_directory=tmp_path / "data"),
+        sources=SourcesConfig(documents=[SourcePathConfig(path=src)]),
+    )
+    first = index_config(cfg)
+    assert first.new == 1
+    assert len(ChunkStore(tmp_path / "data").load_all_chunks()) == 1
+
+    cfg.indexing.ignored_extensions.append(".h5")
+    second = index_config(cfg)
+
+    assert second.deleted == 1
+    assert ChunkStore(tmp_path / "data").load_all_chunks() == []
+
+
+def test_indexer_removes_orphan_chunk_files_outside_current_discovery(tmp_path: Path) -> None:
+    src = tmp_path / "src"
+    src.mkdir()
+    keep = src / "keep.txt"
+    keep.write_text("keep", encoding="utf-8")
+    obsolete = src / "obsolete.h5"
+    store = ChunkStore(tmp_path / "data")
+    store.replace_file_chunks(str(obsolete.resolve()), [Chunk("kb", str(obsolete.resolve()), "text", None, 1, 1, "obsolete")])
+    cfg = CarsenConfig(
+        knowledge=KnowledgeConfig(id="kb"),
+        storage=StorageConfig(data_directory=tmp_path / "data"),
+        sources=SourcesConfig(documents=[SourcePathConfig(path=src)]),
+    )
+    cfg.indexing.ignored_extensions.append(".h5")
+
+    report = index_config(cfg)
+
+    chunks = ChunkStore(tmp_path / "data").load_all_chunks()
+    assert report.deleted == 1
+    assert [chunk.source_path for chunk in chunks] == ["keep.txt"]
+
+
 def test_indexer_reports_progress_without_changing_counts(tmp_path: Path) -> None:
     src = tmp_path / "src"
     src.mkdir()

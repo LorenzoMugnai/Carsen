@@ -112,6 +112,17 @@ def test_parser_selection_routes_document_extensions(monkeypatch: pytest.MonkeyP
         assert chunks[0].kind == "document"
 
 
+def test_xml_configs_are_indexed_as_document_content(tmp_path: Path) -> None:
+    xml = tmp_path / "payload.xml"
+    xml.write_text('<channel name="AIRS-CH1"><detector pixels="64 x 64" /></channel>', encoding="utf-8")
+
+    chunks = parse_file(xml, "kb", tmp_path)
+
+    assert chunks[0].kind == "document"
+    assert chunks[0].metadata["source_type"] == "documents"
+    assert chunks[0].metadata["document_type"] == "xml"
+
+
 def test_pdf_docling_converter_uses_fast_options(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     captured: dict[str, Any] = {}
 

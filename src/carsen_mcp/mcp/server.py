@@ -36,6 +36,10 @@ def create_mcp_server(config: CarsenConfig):
         return runtime.search_knowledge(query, limit, filters)
 
     @server.tool()
+    def search_debug(query: str, limit: int = 8, filters: dict[str, Any] | None = None) -> dict[str, Any]:
+        return runtime.search_debug(query, limit, filters)
+
+    @server.tool()
     def search_code(query: str, limit: int = 8, filters: dict[str, Any] | None = None) -> list[dict[str, Any]]:
         return runtime.search_code(query, limit, filters)
 

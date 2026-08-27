@@ -1,7 +1,7 @@
 from pathlib import Path
 
 import anyio
-from mcp.client import Client
+import pytest
 
 from carsen_mcp.chunks.model import Chunk
 from carsen_mcp.chunks.store import ChunkStore
@@ -10,6 +10,12 @@ from carsen_mcp.mcp.server import create_mcp_server
 
 
 def test_mcp_client_calls_instance_tools_in_process(tmp_path: Path) -> None:
+    mcp_client = pytest.importorskip("mcp.client")
+    Client = getattr(mcp_client, "Client", None)
+    if Client is None:
+        pytest.skip("Installed MCP package does not expose mcp.client.Client")
+    assert Client is not None
+
     async def scenario() -> None:
         config = CarsenConfig(
             knowledge=KnowledgeConfig(id="client_smoke"),
@@ -30,7 +36,7 @@ def test_mcp_client_calls_instance_tools_in_process(tmp_path: Path) -> None:
 
         async with Client(create_mcp_server(config), raise_exceptions=True) as client:
             tools = await client.list_tools()
-            assert {tool.name for tool in tools.tools} >= {"knowledge_info", "find_symbol", "read_source"}
+            assert {tool.name for tool in tools.tools} >= {"knowledge_info", "find_symbol", "read_source", "search_debug"}
 
             info = await client.call_tool("knowledge_info", {})
             assert info.structured_content["knowledge_id"] == "client_smoke"

@@ -13,11 +13,30 @@ from .filters import matches_filters
 from .models import SearchResult
 
 TOKEN_RE = re.compile(r"[A-Za-z_][A-Za-z0-9_\.]*|[0-9]+")
+SPLIT_RE = re.compile(r"[A-Za-z]+|[0-9]+")
+MAX_INDEXED_TEXT_CHARS = 200_000
 
 
 def tokenise(text: str) -> list[str]:
     """Tokenise source-like text, preserving dotted identifiers."""
-    return [token.lower() for token in TOKEN_RE.findall(text)]
+    tokens: list[str] = []
+    for token in TOKEN_RE.findall(text):
+        for candidate in _token_variants(token):
+            tokens.append(candidate)
+            if candidate.endswith("s") and len(candidate) > 3:
+                tokens.append(candidate[:-1])
+    return tokens
+
+
+def _token_variants(token: str) -> list[str]:
+    lowered = token.lower()
+    variants = [lowered]
+    parts = [part.lower() for part in SPLIT_RE.findall(token)]
+    variants.extend(parts)
+    if "pix" in parts:
+        variants.append("pixel")
+        variants.append("pixels")
+    return list(dict.fromkeys(variants))
 
 
 @dataclass(frozen=True)
@@ -80,4 +99,5 @@ def _chunk_to_result(chunk: Chunk) -> SearchResult:
 
 
 def _document_tokens(result: SearchResult) -> list[str]:
-    return tokenise("\n".join([result.text, str(result.metadata.get("symbol") or ""), str(result.metadata.get("source_path") or ""), str(result.metadata.get("kind") or "")]))
+    indexed_text = result.text[:MAX_INDEXED_TEXT_CHARS]
+    return tokenise("\n".join([indexed_text, str(result.metadata.get("symbol") or ""), str(result.metadata.get("source_path") or ""), str(result.metadata.get("kind") or "")]))

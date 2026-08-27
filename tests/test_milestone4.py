@@ -46,6 +46,87 @@ def test_sparse_retrieval_exact_identifier() -> None:
     assert hits[0].metadata["symbol"] == "Detector.calibrate"
 
 
+def test_sparse_retrieval_finds_xml_detector_pixel_facts_from_natural_language_query() -> None:
+    hits = SparseRetriever(
+        results=[
+            result(
+                "xml-target",
+                '<channel name="AIRS-CH1"><detector pixels="64 x 64" /></channel>',
+                source_path="payload/arielrad_config.xml",
+                document_type="xml",
+                source_type="documents",
+            ),
+            result(
+                "xml-other",
+                '<channel name="AIRS-CH0"><detector pixels="32 x 32" /></channel>',
+                source_path="payload/arielrad_config.xml",
+                document_type="xml",
+                source_type="documents",
+            ),
+        ]
+    ).search("numero di pixel di airs ch1", limit=2)
+
+    assert hits[0].chunk_id == "xml-target"
+
+
+def test_sparse_retrieval_matches_hyphenated_xml_identifiers_without_exact_punctuation() -> None:
+    hits = SparseRetriever(
+        results=[
+            result(
+                "xml-target",
+                '<channel name="AIRS-CH1"><detector pixels="64 x 64" /></channel>',
+                source_path="payload/exosim.xml",
+                document_type="xml",
+                source_type="documents",
+            )
+        ]
+    ).search("AIRS CH1 detector pixels", limit=1)
+
+    assert hits[0].chunk_id == "xml-target"
+
+
+def test_sparse_retrieval_matches_xml_config_path_and_pix_abbreviations() -> None:
+    hits = SparseRetriever(
+        results=[
+            result(
+                "airs-ch1",
+                "<detector><spatial_pix>64</spatial_pix><spectral_pix>64</spectral_pix></detector>",
+                source_path="payload/20250506_mpdb/airs_ch1.xml",
+                document_type="xml",
+                source_type="documents",
+            ),
+            result(
+                "fgs",
+                "<detector><spatial_pix>32</spatial_pix><spectral_pix>32</spectral_pix></detector>",
+                source_path="payload/20250506_mpdb/fgs1.xml",
+                document_type="xml",
+                source_type="documents",
+            ),
+        ]
+    ).search("numero di pixel di airs ch1", limit=2)
+
+    assert hits[0].chunk_id == "airs-ch1"
+
+
+def test_sparse_retrieval_bounds_huge_text_indexing_but_keeps_metadata_searchable() -> None:
+    huge_text = "start token " + ("noise " * 100_000) + "zzzendmarker"
+
+    retriever = SparseRetriever(
+        results=[
+            result(
+                "huge",
+                huge_text,
+                source_path="payload/20250506_mpdb/airs_ch1.xml",
+                document_type="xml",
+                source_type="documents",
+            )
+        ]
+    )
+
+    assert retriever.search("airs ch1", limit=1)[0].chunk_id == "huge"
+    assert retriever.search("zzzendmarker", limit=1) == []
+
+
 def test_rrf_ordering_rewards_cross_retriever_agreement() -> None:
     a = result("a", "a")
     b = result("b", "b")

@@ -84,6 +84,53 @@ def test_runtime_sparse_only_mode_does_not_load_dense_provider(tmp_path: Path) -
     assert debug["results"][0]["chunk_id"] == target.chunk_id
 
 
+def test_runtime_reuses_loaded_chunks_between_tool_calls(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    config = cfg(tmp_path, "alpha")
+    target = chunk("alpha", "config.xml", None, '<channel name="AIRS-CH1"><detector pixels="64 x 64" /></channel>', 0, source_type="documents", document_type="xml")
+    populate(config, [target])
+    runtime = InstanceRuntime(config)
+    calls = 0
+    original = runtime.store.load_all_chunks
+
+    def counting_load_all_chunks() -> list[Chunk]:
+        nonlocal calls
+        calls += 1
+        return original()
+
+    monkeypatch.setattr(runtime.store, "load_all_chunks", counting_load_all_chunks)
+
+    runtime.knowledge_info()
+    runtime.search_documents("airs ch1 pixels")
+
+    assert calls == 1
+
+
+def test_runtime_reuses_sparse_retriever_between_tool_calls(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    config = cfg(tmp_path, "alpha")
+    target = chunk("alpha", "config.xml", None, '<channel name="AIRS-CH1"><detector pixels="64 x 64" /></channel>', 0, source_type="documents", document_type="xml")
+    populate(config, [target])
+    runtime = InstanceRuntime(config)
+    calls = 0
+
+    class CountingSparseRetriever:
+        def __init__(self, chunks=None, results=None):
+            nonlocal calls
+            calls += 1
+            from carsen_mcp.retrieval.sparse import SparseRetriever
+
+            self.inner = SparseRetriever(chunks=chunks, results=results)
+
+        def search(self, query: str, limit: int = 10, filters: dict[str, object] | None = None):
+            return self.inner.search(query, limit, filters)
+
+    monkeypatch.setattr("carsen_mcp.mcp.runtime.SparseRetriever", CountingSparseRetriever)
+
+    runtime.search_documents("airs ch1 pixels")
+    runtime.search_documents("airs ch1 detector")
+
+    assert calls == 1
+
+
 def test_runtime_read_source_expansion_and_metadata(tmp_path: Path) -> None:
     config = cfg(tmp_path, "alpha")
     chunks = [
