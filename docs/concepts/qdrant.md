@@ -27,3 +27,7 @@ For local experiments, run Qdrant with Docker:
 ```bash
 docker run --rm -p 6333:6333 -p 6334:6334 qdrant/qdrant
 ```
+
+## Growing the collection
+
+When a collection gets large, Carsen can pass Qdrant's own performance settings through `storage.tuning` in the instance YAML: how hard the vector index searches (`hnsw_ef`), whether stored vectors are compressed (`quantization`), and whether vectors or payloads live on disk. The [configuration guide](../configuration.md#tuning-qdrant-for-large-collections) explains when to use each. These only affect a real Qdrant server; the embedded local mode always does exact search.

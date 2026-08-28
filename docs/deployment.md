@@ -18,6 +18,12 @@ Before a release, run an operational smoke with a temporary Qdrant container and
 
 Set `server.transport: http`, bind an appropriate `host` and use a unique `port` per instance. Place an authenticating reverse proxy in front if exposing beyond trusted local networks.
 
+MCP tool calls run in a worker-thread pool, so a shared HTTP instance stays responsive to other clients while one request runs a slow embedding or reranking pass.
+
+## Scaling a shared instance
+
+As a shared knowledge base grows, tune the Qdrant collection through `storage.tuning` rather than adding hardware first: raise `hnsw_ef` if dense recall drops, enable `quantization: scalar` when the collection outgrows RAM, then the `on_disk` options for larger-than-memory corpora. See [Tuning Qdrant for large collections](configuration.md#tuning-qdrant-for-large-collections). Changing `quantization` or the `on_disk` settings requires `carsen reembed`.
+
 ## Docker
 
 The repository includes a `Dockerfile` and `docker-compose.example.yml`. The compose file demonstrates Qdrant plus two Carsen services with separate configs, ports and data volumes.

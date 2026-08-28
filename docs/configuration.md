@@ -19,6 +19,14 @@ storage:
   # qdrant_path: "${HOME}/.local/share/carsen/example/qdrant"
   collection: kb_example
   data_directory: "${HOME}/.local/share/carsen/example"
+  tuning:
+    hnsw_ef: null
+    quantization: null
+    quantization_always_ram: true
+    rescore: true
+    oversampling: 2.0
+    on_disk_vectors: false
+    on_disk_payload: false
 models:
   embedding:
     provider: sentence_transformers
@@ -64,6 +72,7 @@ policy:
 - `server.transport` supports `stdio` and `http`; HTTP is served as streamable HTTP on `/mcp`.
 - `storage.collection` defaults to `kb_<knowledge_id>`. `storage.data_directory` defaults under `~/.local/share/carsen/<id>`.
 - `storage.qdrant_url` points to a running Qdrant service. If Docker or a Qdrant server is unavailable, set `storage.qdrant_path` (for example `~/.local/share/carsen/<id>/qdrant`) to use embedded local Qdrant storage. When set, `qdrant_path` overrides `qdrant_url`.
+- `storage.tuning` holds optional Qdrant performance knobs. All defaults keep current behaviour, and they only matter for a real Qdrant server (embedded local Qdrant does brute-force search and ignores them). See [Tuning Qdrant for large collections](#tuning-qdrant-for-large-collections).
 - Environment variables and `~` are expanded in YAML values. Relative paths are resolved against the YAML file location.
 - `retrieval.fusion` currently accepts only `rrf`.
 - `retrieval.rerank` is off by default. When enabled, fused candidates are reranked with `models.reranker` before diversification; the `sentence_transformers` reranker provider loads a cross-encoder model on the first search and expects a genuine cross-encoder checkpoint such as `BAAI/bge-reranker-v2-m3`. A reranker failure falls back to the fused order and is reported in `search_debug` diagnostics.
@@ -176,3 +185,33 @@ models:
 `batch_size` controls how many chunks are embedded at once. Lower values use less memory and are slower. `max_seq_length` limits how much text each chunk sends into the transformer model. Lower values avoid very large attention buffers, especially for long XML, HTML or generated files.
 
 If you do not need semantic vector search, prefer `retrieval.dense_candidates: 0` and skip `--embed` entirely.
+
+## Tuning Qdrant for large collections
+
+`storage.tuning` exposes Qdrant's performance settings. Every option is optional and the defaults change nothing, so small instances need no tuning. These settings apply only to a real Qdrant server: embedded local Qdrant (`qdrant_path`) performs exact brute-force search and ignores them.
+
+```yaml
+storage:
+  tuning:
+    hnsw_ef: 128
+    quantization: scalar
+    quantization_always_ram: true
+    rescore: true
+    oversampling: 2.0
+    on_disk_vectors: false
+    on_disk_payload: false
+```
+
+| Field | Effect | When to change it |
+| --- | --- | --- |
+| `hnsw_ef` | Query-time breadth of the HNSW graph search. Higher means more accurate recall and slower queries. Unset uses Qdrant's collection default. | Raise to `128`–`256` if dense recall feels low on a big collection; lower it to speed up queries when recall is already good. |
+| `quantization` | Compresses stored vectors. `scalar` uses int8 (about 4x smaller, minimal accuracy loss). `binary` uses 1 bit per dimension (about 32x smaller, only worthwhile for high-dimensional models and always with `rescore`). Unset keeps full-precision vectors. | Enable `scalar` once a collection no longer fits comfortably in RAM. |
+| `quantization_always_ram` | Keeps the compressed vectors in RAM even when the originals are on disk. | Leave `true` unless RAM is very tight. |
+| `rescore` | After the quantized shortlist, re-rank candidates against the original full-precision vectors. | Keep `true` with quantization; it restores most of the lost accuracy at small cost. |
+| `oversampling` | How many extra quantized candidates to pull before rescoring (`2.0` = fetch 2x `limit`). | Raise if quantized recall is poor; lower to reduce work. |
+| `on_disk_vectors` | Stores the original vectors on disk instead of RAM. | For collections far larger than memory, usually together with `quantization`. |
+| `on_disk_payload` | Stores chunk payloads (text, metadata) on disk. | For very large corpora where payload size dominates memory. |
+
+`hnsw_ef`, `rescore` and `oversampling` take effect immediately. `quantization`, `on_disk_vectors` and `on_disk_payload` are collection-creation settings, so run `carsen reembed NAME` after changing them to recreate the collection.
+
+A typical progression for a growing shared instance: start with defaults, add `hnsw_ef: 128` if recall drops, then `quantization: scalar` when the collection outgrows RAM, then the `on_disk` options for larger-than-memory corpora.

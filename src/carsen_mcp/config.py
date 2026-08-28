@@ -47,6 +47,28 @@ class ServerConfig(BaseModel):
         return value
 
 
+class QdrantTuningConfig(BaseModel):
+    """Optional Qdrant performance knobs, applied when the collection is created
+    and when it is queried. Defaults keep behaviour unchanged; changing
+    ``quantization`` or the ``on_disk`` options takes effect only after
+    ``carsen reembed`` recreates the collection."""
+
+    hnsw_ef: int | None = Field(default=None, ge=1)
+    quantization: str | None = None
+    quantization_always_ram: bool = True
+    rescore: bool = True
+    oversampling: float = Field(default=2.0, ge=1.0)
+    on_disk_vectors: bool = False
+    on_disk_payload: bool = False
+
+    @field_validator("quantization")
+    @classmethod
+    def supported_quantization(cls, value: str | None) -> str | None:
+        if value is not None and value not in {"scalar", "binary"}:
+            raise ValueError("storage.tuning.quantization must be 'scalar', 'binary' or unset")
+        return value
+
+
 class StorageConfig(BaseModel):
     """Instance-specific persistent storage locations."""
 
@@ -54,6 +76,7 @@ class StorageConfig(BaseModel):
     qdrant_path: Path | None = None
     collection: str | None = None
     data_directory: Path | None = None
+    tuning: QdrantTuningConfig = Field(default_factory=QdrantTuningConfig)
 
 
 class ModelProviderConfig(BaseModel):

@@ -8,6 +8,8 @@ from uuid import NAMESPACE_URL, uuid5
 
 from qdrant_client import QdrantClient
 from qdrant_client.http.models import (
+    BinaryQuantization,
+    BinaryQuantizationConfig,
     Distance,
     FieldCondition,
     Filter,
@@ -15,10 +17,16 @@ from qdrant_client.http.models import (
     MatchValue,
     PayloadSchemaType,
     PointStruct,
+    QuantizationSearchParams,
+    ScalarQuantization,
+    ScalarQuantizationConfig,
+    ScalarType,
+    SearchParams,
     VectorParams,
 )
 
 from carsen_mcp.chunks.model import Chunk
+from carsen_mcp.config import QdrantTuningConfig
 from carsen_mcp.retrieval import SearchResult
 
 #: Metadata keys promoted to top-level payload fields and given a payload index
@@ -32,11 +40,19 @@ PREFIX_FILTER_KEYS = ("path_prefix", "source_path_prefix")
 class QdrantVectorStore:
     """Dense vector store for one Carsen knowledge collection."""
 
-    def __init__(self, client: QdrantClient, collection_name: str, dimensions: int, distance: Distance = Distance.COSINE) -> None:
+    def __init__(
+        self,
+        client: QdrantClient,
+        collection_name: str,
+        dimensions: int,
+        distance: Distance = Distance.COSINE,
+        tuning: QdrantTuningConfig | None = None,
+    ) -> None:
         self.client = client
         self.collection_name = collection_name
         self.dimensions = dimensions
         self.distance = distance
+        self.tuning = tuning or QdrantTuningConfig()
 
     def recreate_collection(self) -> None:
         """Recreate only this instance collection."""
@@ -45,9 +61,42 @@ class QdrantVectorStore:
             self.client.delete_collection(collection_name=self.collection_name)
         self.client.create_collection(
             collection_name=self.collection_name,
-            vectors_config=VectorParams(size=self.dimensions, distance=self.distance),
+            vectors_config=VectorParams(
+                size=self.dimensions,
+                distance=self.distance,
+                on_disk=self.tuning.on_disk_vectors or None,
+            ),
+            quantization_config=self._quantization_config(),
+            on_disk_payload=self.tuning.on_disk_payload or None,
         )
         self._ensure_payload_indexes()
+
+    def _quantization_config(self) -> Any:
+        if self.tuning.quantization == "scalar":
+            return ScalarQuantization(
+                scalar=ScalarQuantizationConfig(
+                    type=ScalarType.INT8,
+                    quantile=0.99,
+                    always_ram=self.tuning.quantization_always_ram,
+                )
+            )
+        if self.tuning.quantization == "binary":
+            return BinaryQuantization(
+                binary=BinaryQuantizationConfig(always_ram=self.tuning.quantization_always_ram)
+            )
+        return None
+
+    def _search_params(self) -> SearchParams | None:
+        quantization_params = None
+        if self.tuning.quantization is not None:
+            quantization_params = QuantizationSearchParams(
+                ignore=False,
+                rescore=self.tuning.rescore,
+                oversampling=self.tuning.oversampling,
+            )
+        if self.tuning.hnsw_ef is None and quantization_params is None:
+            return None
+        return SearchParams(hnsw_ef=self.tuning.hnsw_ef, quantization=quantization_params)
 
     def ensure_collection(self) -> None:
         """Create this instance collection when it does not already exist."""
@@ -99,13 +148,17 @@ class QdrantVectorStore:
         # Over-fetch when a client-side prefix predicate is present so the final
         # slice still returns up to ``limit`` matches.
         query_limit = limit if not prefixes else max(limit * 4, limit + 20)
-        response = self.client.query_points(
-            collection_name=self.collection_name,
-            query=query_vector,
-            limit=query_limit,
-            query_filter=_filter(filters),
-            with_payload=True,
-        )
+        with warnings.catch_warnings():
+            # Local Qdrant is brute-force and warns that search_params are ignored.
+            warnings.simplefilter("ignore")
+            response = self.client.query_points(
+                collection_name=self.collection_name,
+                query=query_vector,
+                limit=query_limit,
+                query_filter=_filter(filters),
+                with_payload=True,
+                search_params=self._search_params(),
+            )
         points = cast(Any, getattr(response, "points", response))
         results: list[SearchResult] = []
         for point in points:
@@ -177,4 +230,5 @@ def qdrant_store_from_config(config: Any, dimensions: int, client: QdrantClient 
         client or QdrantClient(url=config.storage.qdrant_url, check_compatibility=False),
         collection,
         dimensions=dimensions,
+        tuning=getattr(config.storage, "tuning", None),
     )

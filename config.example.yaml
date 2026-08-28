@@ -15,6 +15,22 @@ storage:
   # qdrant_path: "${HOME}/.local/share/carsen/example/qdrant"
   collection: kb_example
   data_directory: "${HOME}/.local/share/carsen/example"
+  # Optional Qdrant performance knobs for large collections. Defaults keep
+  # behaviour unchanged. Changing quantization or the on_disk options only takes
+  # effect after 'carsen reembed' recreates the collection.
+  tuning:
+    # Query-time HNSW search breadth. Higher = more accurate, slower. Unset = Qdrant default.
+    hnsw_ef: null
+    # Compress stored vectors: 'scalar' (int8, ~4x smaller, tiny accuracy loss)
+    # or 'binary' (~32x smaller, needs rescore). Unset = full-precision vectors.
+    quantization: null
+    quantization_always_ram: true
+    # With quantization: re-score shortlisted candidates against full vectors.
+    rescore: true
+    oversampling: 2.0
+    # Keep vectors / payload on disk instead of in RAM (larger-than-memory collections).
+    on_disk_vectors: false
+    on_disk_payload: false
 
 models:
   embedding:
