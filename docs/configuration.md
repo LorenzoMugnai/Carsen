@@ -49,6 +49,8 @@ parsing:
     ocr: false
     table_structure: false
     force_backend_text: true
+  max_chunk_tokens: 1200
+  chunk_overlap_tokens: 100
 sources:
   code: []
   documents: []
@@ -76,6 +78,7 @@ policy:
 - Embeddings and Qdrant are optional for indexing and MCP retrieval. Plain `carsen index` builds local chunks for sparse/exact search. `carsen index --embed` warns if the optional dense phase fails, while `carsen reembed` remains dense-only and reports failures as errors.
 - `indexing.watch` enables foreground/background filesystem watch indexing. `watch_debounce_seconds` coalesces rapid file events, and `watch_embed` also refreshes dense vectors after watched changes.
 - `parsing.documents` controls optional Docling document parsing. PDF parsing defaults to fast text extraction: OCR and table structure are disabled, and backend text is preferred.
+- `parsing.max_chunk_tokens` (default 1200, roughly 4 chars per token) splits any parser chunk larger than the budget into overlapping line-aligned sub-chunks; `parsing.chunk_overlap_tokens` (default 100) sets the overlap. Sub-chunks carry `parent_chunk_id`, `sub_chunk_index` and `sub_chunk_count` metadata, and `order` is renumbered densely per file. Set `max_chunk_tokens: null` to keep whole parser chunks.
 - `sources.code` and `sources.documents` contain entries with `path`, optional `repository_name`, optional `type` and optional `tags`.
 - Sources may also use `repo_url`, `ref` and `subpath` instead of `path` for public Git repositories. Carsen clones/fetches these into the instance cache under `storage.data_directory/remotes/` and pins online citations to the checked-out commit. If both `repo_url` and `path` are present, `repo_url` takes precedence.
 - `policy.allow_external_llm` is metadata for clients; it is not an enforcement boundary.

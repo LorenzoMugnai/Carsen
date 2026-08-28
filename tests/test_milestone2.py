@@ -88,6 +88,27 @@ def test_indexer_persists_chunks_and_reports(tmp_path: Path) -> None:
     assert (tmp_path / "data" / "chunks.sqlite3").exists()
 
 
+def test_indexer_splits_oversized_chunks(tmp_path: Path) -> None:
+    src = tmp_path / "src"
+    src.mkdir()
+    body = "\n".join(f"    value_{i} = compute({i})  # keep this line reasonably long for the budget" for i in range(400))
+    (src / "big.py").write_text(f"def huge_function():\n{body}\n    return value_0\n", encoding="utf-8")
+    cfg = CarsenConfig(
+        knowledge=KnowledgeConfig(id="kb"),
+        storage=StorageConfig(data_directory=tmp_path / "data"),
+        sources=SourcesConfig(code=[SourcePathConfig(path=src)]),
+    )
+    cfg.parsing.max_chunk_tokens = 200
+
+    index_config(cfg)
+    chunks = ChunkStore(tmp_path / "data").load_all_chunks()
+    pieces = [chunk for chunk in chunks if chunk.metadata.get("parent_chunk_id")]
+
+    assert len(pieces) > 1
+    assert {chunk.order for chunk in chunks} == set(range(len(chunks)))
+    assert all(len(chunk.text) <= 200 * 4 for chunk in pieces)
+
+
 def test_indexer_removes_chunks_for_files_that_become_ignored(tmp_path: Path) -> None:
     src = tmp_path / "src"
     src.mkdir()

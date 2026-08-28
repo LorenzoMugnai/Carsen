@@ -142,6 +142,8 @@ class ParsingConfig(BaseModel):
     """Parser-specific options."""
 
     documents: DocumentParsingConfig = Field(default_factory=DocumentParsingConfig)
+    max_chunk_tokens: int | None = Field(default=1200, ge=1)
+    chunk_overlap_tokens: int = Field(default=100, ge=0)
 
 
 class SourcePathConfig(BaseModel):

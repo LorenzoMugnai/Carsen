@@ -66,6 +66,10 @@ parsing:
     ocr: false
     table_structure: false
     force_backend_text: true
+  # Split parser chunks larger than this many tokens into overlapping pieces
+  # (approx 4 chars/token). Set to null to keep whole parser chunks.
+  max_chunk_tokens: 1200
+  chunk_overlap_tokens: 100
 
 sources:
   # Local source example:

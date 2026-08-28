@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Protocol
 
+from carsen_mcp.chunks.normalize import normalize_chunks
 from carsen_mcp.chunks.store import ChunkStore
 from carsen_mcp.config import CarsenConfig, SourcePathConfig
 from carsen_mcp.embeddings import EmbeddingProvider, embedding_provider_from_config
@@ -174,6 +175,7 @@ def index_config(
                 error=str(exc),
             )
             continue
+        chunks = normalize_chunks(chunks, config.parsing.max_chunk_tokens, config.parsing.chunk_overlap_tokens)
         _enrich_chunks(chunks, source_by_file.get(path_str) or SourcePathConfig(path=path), path)
         store.replace_file_chunks(path_str, chunks)
         parsed_paths.append(path_str)
