@@ -37,6 +37,7 @@ class InstanceRuntime:
         self.vector_store = vector_store
         self._chunks_cache: list[Chunk] | None = None
         self._sparse_cache: SparseRetriever | None = None
+        self._dense_cache: DenseRetriever | None = None
 
     @property
     def chunks(self) -> list[Chunk]:
@@ -125,6 +126,22 @@ class InstanceRuntime:
             self._sparse_cache = SparseRetriever(chunks=chunks)
         return self._sparse_cache
 
+    def _dense_retriever(self) -> DenseRetriever:
+        """Build the dense retriever once and reuse it across tool calls.
+
+        Constructing the embedding provider and Qdrant client is expensive: the
+        sentence-transformers model is loaded from disk on first use, so a fresh
+        provider per query would reload the model every time.
+        """
+
+        if self._dense_cache is None:
+            provider = self.embedding_provider or embedding_provider_from_config(self.config.models.embedding)
+            store = self.vector_store or qdrant_store_from_config(self.config, provider.dimensions)
+            self.embedding_provider = provider
+            self.vector_store = store
+            self._dense_cache = DenseRetriever(provider, store)
+        return self._dense_cache
+
     def _search(self, query: str, limit: int, filters: dict[str, Any] | None) -> list[SearchResult]:
         return self._search_with_debug(query, limit, filters)[0]
 
@@ -134,9 +151,7 @@ class InstanceRuntime:
             results = sparse.search(query, limit=limit, filters=filters)
             return results, {"mode": "sparse_only", "sparse_candidates": len(results), "ranking": [self._redacted_result(result) for result in results]}
         try:
-            provider = self.embedding_provider or embedding_provider_from_config(self.config.models.embedding)
-            store = self.vector_store or qdrant_store_from_config(self.config, provider.dimensions)
-            dense = DenseRetriever(provider, store)
+            dense = self._dense_retriever()
             config = HybridRetrievalConfig(
                 dense_candidates=self.config.retrieval.dense_candidates,
                 sparse_candidates=self.config.retrieval.sparse_candidates,

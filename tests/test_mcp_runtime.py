@@ -9,6 +9,7 @@ from carsen_mcp.chunks.model import Chunk
 from carsen_mcp.chunks.store import ChunkStore
 from carsen_mcp.cli import app
 from carsen_mcp.config import CarsenConfig, KnowledgeConfig, ServerConfig, StorageConfig
+from carsen_mcp.embeddings import FakeEmbeddingProvider
 from carsen_mcp.mcp.runtime import InstanceRuntime
 
 
@@ -129,6 +130,34 @@ def test_runtime_reuses_sparse_retriever_between_tool_calls(tmp_path: Path, monk
     runtime.search_documents("airs ch1 detector")
 
     assert calls == 1
+
+
+def test_runtime_builds_dense_retriever_once_across_searches(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    config = cfg(tmp_path, "alpha")
+    config.retrieval.dense_candidates = 5
+    config.retrieval.sparse_candidates = 5
+    populate(config, [chunk("alpha", "src/a.py", "a", "dense reuse target", 0, source_type="code")])
+
+    class FakeStore:
+        def search(self, query_vector: list[float], limit: int, filters: dict[str, object] | None = None):
+            return []
+
+    from carsen_mcp.retrieval import DenseRetriever as RealDenseRetriever
+
+    builds = 0
+
+    def counting_dense_retriever(provider: object, store: object) -> RealDenseRetriever:
+        nonlocal builds
+        builds += 1
+        return RealDenseRetriever(provider, store)  # type: ignore[arg-type]
+
+    monkeypatch.setattr("carsen_mcp.mcp.runtime.DenseRetriever", counting_dense_retriever)
+    runtime = InstanceRuntime(config, embedding_provider=FakeEmbeddingProvider(8), vector_store=FakeStore())  # type: ignore[arg-type]
+
+    runtime.search_knowledge("dense reuse target", limit=3)
+    runtime.search_knowledge("another unrelated query", limit=3)
+
+    assert builds == 1
 
 
 def test_runtime_xml_fact_query_returns_focused_detector_chunk(tmp_path: Path) -> None:
