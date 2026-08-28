@@ -1,5 +1,12 @@
 # Qdrant-native sparse retrieval design
 
+## Status
+
+Superseded by `2026-08-28-sqlite-chunk-store-design.md`. That approach moves both
+the chunk store and lexical search into one per-instance SQLite database with
+FTS5, which also removes the in-memory chunk load this design left in place and
+avoids adding the `fastembed` dependency. Kept for the analysis below.
+
 ## Goal
 
 Replace Carsen's in-process Python BM25 implementation with Qdrant's native
