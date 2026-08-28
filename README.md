@@ -23,6 +23,18 @@
 
 Carsen is a local-first Model Context Protocol (MCP) knowledge engine for serving indexed code and document collections to any MCP-capable client. It keeps retrieval, citation metadata and operational state in Carsen; the generative LLM remains replaceable.
 
+## What problem does Carsen solve?
+
+When an LLM or an AI agent has to answer questions about *your* code, papers and notes, it usually does one of three unsatisfying things:
+
+- **guesses from training data** and quietly invents the specifics — a function signature, a config key, a parameter bound, a number;
+- **has the whole file pasted into its context**, which is wasteful, and impossible once the corpus is large;
+- **calls a hosted RAG service**, which means shipping your material to a third party and trusting citations you cannot check.
+
+Carsen is the missing middle. You index your sources into isolated, on-disk knowledge bases; Carsen returns the few passages that actually answer a query, each with a real citation — source path, line span, and a commit-pinned link where one exists — and serves them over MCP so any client or model can use them. Nothing leaves your machine unless you configure it to, and the answer generation stays with whatever LLM you choose.
+
+It is built for researchers, labs and engineers who need grounded, reproducible answers over their own material.
+
 ## Documentation
 
 - [Quickstart for academic users](docs/quickstart.md)
@@ -120,3 +132,17 @@ uv run pytest
 - [ADR 0004: Hybrid dense/sparse retrieval](docs/adr/0004-hybrid-dense-sparse-retrieval.md)
 - [ADR 0005: Metadata-backed citations](docs/adr/0005-metadata-backed-citations.md)
 - [ADR 0006: Generative LLM independence](docs/adr/0006-generative-llm-independence.md)
+
+## The name
+
+The mascot is Carsen, a librarian. The name is a quiet nod to a certain fictional librarian — the one with a wall of academic degrees who, whatever you ask, can tell you the exact shelf, the exact volume and the exact page. That is the job description here: Carsen does not write your thesis or your final answer, it just always knows where the answer lives and never makes up a citation. The pixel-art librarian is our own.
+
+## Development and AI assistance
+
+Carsen is designed and maintained by Lorenzo Mugnai. The project's direction, its architecture, the public API and every decision recorded in the [ADRs](docs/adr/) are the author's.
+
+Parts of the implementation were written with AI coding assistants (Claude and GPT-5.5) — yes, there was some vibe coding. It was not blind: every AI-assisted change is reviewed, run through the full quality gate (`ruff`, `mypy`, `pytest`, `mkdocs build --strict`) and accompanied by tests before it lands, and the design choices are the ones argued in the ADRs rather than whatever an assistant proposed first. See [docs/development.md](docs/development.md) for the fuller statement.
+
+## License
+
+Carsen is released under the [BSD 3-Clause License](LICENSE).

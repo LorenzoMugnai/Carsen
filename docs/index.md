@@ -19,6 +19,16 @@ Carsen indexes your code and documents into isolated knowledge instances, then r
 </div>
 </section>
 
+## The problem
+
+When an LLM or an AI agent has to answer questions about *your* code, papers and notes, it usually does one of three unsatisfying things:
+
+- **guesses from training data** and quietly invents the specifics — a function signature, a config key, a parameter bound, a number;
+- **has the whole file pasted into its context**, which is wasteful and stops working once the corpus is large;
+- **calls a hosted RAG service**, which means shipping your material to a third party and trusting citations you cannot check.
+
+Carsen is the missing middle: index your sources into isolated, on-disk knowledge bases, and get back the few passages that actually answer a query, each with a citation you can open — source path, line span, and a commit-pinned link where one exists. It serves those results over MCP, so the client and the model stay your choice, and nothing leaves your machine unless you configure it to.
+
 ## Why Carsen
 
 <div class="carsen-card-grid" markdown>
@@ -83,3 +93,7 @@ carsen serve carsen-self --transport stdio
 - [Testing](testing.md)
 - [Extending](extending.md)
 - [Troubleshooting](troubleshooting.md)
+
+## The name
+
+The mascot is Carsen, a librarian. The name is a quiet nod to a certain fictional librarian — the one with a wall of academic degrees who, whatever you ask, can tell you the exact shelf, the exact volume and the exact page. That is the job description here: Carsen does not write your final answer, it just always knows where the answer lives and never makes up a citation. The pixel-art librarian is our own.
