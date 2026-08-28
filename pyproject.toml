@@ -5,12 +5,36 @@ build-backend = "hatchling.build"
 [project]
 name = "carsen-mcp"
 dynamic = ["version"]
-description = "Carsen MCP code skeleton"
+description = "Local-first MCP knowledge engine that serves cited retrieval over your code and documents."
+readme = "README.md"
+license = { text = "BSD-3-Clause" }
 requires-python = ">=3.12"
+authors = [{ name = "Lorenzo Mugnai" }]
+keywords = [
+  "mcp",
+  "rag",
+  "retrieval",
+  "knowledge-base",
+  "vector-search",
+  "citations",
+  "local-first",
+  "llm",
+  "qdrant",
+]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Science/Research",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: BSD License",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Scientific/Engineering",
+  "Topic :: Text Processing :: Indexing",
+]
 dependencies = [
   "pydantic>=2.7",
   "qdrant-client>=1.10",
-  "mcp>=1.0",
+  "mcp>=2",
   "PyYAML>=6.0",
   "typer>=0.12",
   "docling>=2.0",
@@ -33,6 +57,13 @@ docs = [
   "mkdocs-material>=9.5",
   "pymdown-extensions>=11.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/LorenzoMugnai/Carsen"
+Documentation = "https://github.com/LorenzoMugnai/Carsen#readme"
+Repository = "https://github.com/LorenzoMugnai/Carsen"
+Issues = "https://github.com/LorenzoMugnai/Carsen/issues"
+Changelog = "https://github.com/LorenzoMugnai/Carsen/blob/main/CHANGELOG.md"
 
 [project.scripts]
 carsen = "carsen_mcp.cli:app"
