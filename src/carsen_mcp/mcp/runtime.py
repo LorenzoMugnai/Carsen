@@ -21,7 +21,6 @@ from carsen_mcp.retrieval import (
     SearchResult,
     SourceExpander,
     SparseRetriever,
-    lookup_symbol,
 )
 from carsen_mcp.storage import QdrantVectorStore, qdrant_store_from_config
 
@@ -43,6 +42,9 @@ class InstanceRuntime:
         self._reranker_cache: Reranker | None = None
         self._reranker_loaded = False
         self._generation: int | None = None
+        self._symbol_index: dict[str, list[Chunk]] | None = None
+        self._chunk_by_id: dict[str, Chunk] | None = None
+        self._chunk_by_source: dict[str, Chunk] | None = None
 
     def _maybe_reload(self) -> None:
         """Drop chunk-derived caches when an indexing run has changed the store.
@@ -56,7 +58,31 @@ class InstanceRuntime:
         if self._generation is not None and generation != self._generation:
             self._chunks_cache = None
             self._sparse_cache = None
+            self._symbol_index = None
+            self._chunk_by_id = None
+            self._chunk_by_source = None
         self._generation = generation
+
+    def _symbol_map(self) -> dict[str, list[Chunk]]:
+        if self._symbol_index is None:
+            index: dict[str, list[Chunk]] = {}
+            for chunk in self.chunks:
+                if chunk.symbol:
+                    index.setdefault(chunk.symbol, []).append(chunk)
+            self._symbol_index = index
+        return self._symbol_index
+
+    def _build_chunk_lookup(self) -> None:
+        by_id: dict[str, Chunk] = {}
+        by_source: dict[str, Chunk] = {}
+        for chunk in self.chunks:
+            by_id.setdefault(chunk.chunk_id, chunk)
+            by_source.setdefault(chunk.source_path, chunk)
+            source_id = chunk.metadata.get("source_id")
+            if isinstance(source_id, str):
+                by_source.setdefault(source_id, chunk)
+        self._chunk_by_id = by_id
+        self._chunk_by_source = by_source
 
     @property
     def chunks(self) -> list[Chunk]:
@@ -99,8 +125,8 @@ class InstanceRuntime:
 
     def find_symbol(self, symbol: str, limit: int = 8) -> list[dict[str, Any]]:
         self._log_tool_call("find_symbol", limit=limit)
-        results = lookup_symbol([self._chunk_to_result(chunk) for chunk in self.chunks], symbol)[:limit]
-        return [self._serialise_result(result) for result in results]
+        matches = self._symbol_map().get(symbol, [])[:limit]
+        return [self._serialise_result(self._chunk_to_result(chunk)) for chunk in matches]
 
     def read_source(self, source_id: str | None = None, chunk_id: str | None = None, previous: int = 0, next: int = 0) -> dict[str, Any]:
         self._log_tool_call("read_source", has_source_id=source_id is not None, has_chunk_id=chunk_id is not None, previous=previous, next=next)
@@ -218,11 +244,13 @@ class InstanceRuntime:
             }
 
     def _find_chunk(self, source_id: str | None = None, chunk_id: str | None = None) -> Chunk | None:
-        for chunk in self.chunks:
-            if chunk_id and chunk.chunk_id == chunk_id:
-                return chunk
-            if source_id and (chunk.source_path == source_id or chunk.metadata.get("source_id") == source_id):
-                return chunk
+        if self._chunk_by_id is None or self._chunk_by_source is None:
+            self._build_chunk_lookup()
+        assert self._chunk_by_id is not None and self._chunk_by_source is not None
+        if chunk_id and chunk_id in self._chunk_by_id:
+            return self._chunk_by_id[chunk_id]
+        if source_id:
+            return self._chunk_by_source.get(source_id)
         return None
 
     def _chunk_to_result(self, chunk: Chunk) -> SearchResult:

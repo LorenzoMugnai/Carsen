@@ -273,6 +273,24 @@ def test_runtime_xml_fact_query_returns_focused_detector_chunk(tmp_path: Path) -
     assert result["metadata"]["xml_path"] == "root/detector"
 
 
+def test_runtime_find_symbol_uses_index_with_multiple_matches_and_limit(tmp_path: Path) -> None:
+    config = cfg(tmp_path, "alpha")
+    populate(
+        config,
+        [
+            chunk("alpha", "src/a.py", "Detector.process", "def process a", 0, source_type="code"),
+            chunk("alpha", "src/b.py", "Detector.process", "def process b", 1, source_type="code"),
+            chunk("alpha", "src/c.py", "Other", "def other", 2, source_type="code"),
+        ],
+    )
+    runtime = InstanceRuntime(config)
+
+    all_matches = runtime.find_symbol("Detector.process")
+    assert {item["metadata"]["source_path"] for item in all_matches} == {"src/a.py", "src/b.py"}
+    assert len(runtime.find_symbol("Detector.process", limit=1)) == 1
+    assert runtime.find_symbol("Missing") == []
+
+
 def test_runtime_read_source_expansion_and_metadata(tmp_path: Path) -> None:
     config = cfg(tmp_path, "alpha")
     chunks = [
