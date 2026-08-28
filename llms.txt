@@ -1,0 +1,31 @@
+# Carsen
+
+> Local-first MCP knowledge engine that serves cited retrieval over your code and documents.
+
+Carsen indexes code and documents into isolated, on-disk knowledge bases and serves the
+passages that answer a query — each with a checkable citation (source path, line span,
+commit-pinned link) — over the Model Context Protocol. Nothing leaves the machine unless
+configured to, and the generative LLM stays replaceable. It works in a sparse-only mode
+with no vector database and no embedding model; dense semantic retrieval is an opt-in extra.
+
+## Setup
+
+- [Set up with an AI agent](https://github.com/LorenzoMugnai/Carsen/blob/main/docs/agent-setup.md): step-by-step install recipe an agent can execute, with checks
+- [Quickstart](https://github.com/LorenzoMugnai/Carsen/blob/main/docs/quickstart.md): install through to a served instance
+- [Connect to an LLM](https://github.com/LorenzoMugnai/Carsen/blob/main/docs/llm-integration.md): point an MCP client at a running instance
+- [Configuration](https://github.com/LorenzoMugnai/Carsen/blob/main/docs/configuration.md): every YAML field
+- [CLI reference](https://github.com/LorenzoMugnai/Carsen/blob/main/docs/cli-reference.md)
+
+## Concepts
+
+- [Core concepts](https://github.com/LorenzoMugnai/Carsen/blob/main/docs/concepts.md): MCP, Qdrant, embeddings, chunks and citations
+- [Architecture](https://github.com/LorenzoMugnai/Carsen/blob/main/docs/architecture.md)
+- [Retrieval](https://github.com/LorenzoMugnai/Carsen/blob/main/docs/retrieval.md)
+- [Indexing](https://github.com/LorenzoMugnai/Carsen/blob/main/docs/indexing.md)
+- [Citations](https://github.com/LorenzoMugnai/Carsen/blob/main/docs/citations.md)
+
+## Contributing
+
+- [AGENTS.md](https://github.com/LorenzoMugnai/Carsen/blob/main/AGENTS.md): canonical operating guide for agents and contributors working on Carsen
+- [Contributing guide](https://github.com/LorenzoMugnai/Carsen/blob/main/CONTRIBUTING.md)
+- [Development](https://github.com/LorenzoMugnai/Carsen/blob/main/docs/development.md): code layout and AI-assisted-development note

@@ -2,6 +2,10 @@
 
 Carsen is a local-first Model Context Protocol (MCP) knowledge engine. Contributions should preserve instance isolation, metadata-backed citations, local-first defaults and the separation between retrieval and generation.
 
+## For AI agents
+
+If you are an AI agent working on Carsen, read `AGENTS.md` in the repository root first — it is the canonical operating guide (naming, architectural principles, quality gates, the required checks before reporting completion). To *install and run* Carsen rather than modify it, follow [docs/agent-setup.md](docs/agent-setup.md). AI-assisted contributions are welcome; they must pass the same quality gates and ship with tests, and a human contributor is responsible for the design and for reviewing the change.
+
 ## Development setup
 
 Use Python 3.12+ and `uv` from the repository root:

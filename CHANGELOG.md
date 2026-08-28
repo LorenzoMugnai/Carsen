@@ -6,6 +6,7 @@ All notable changes to Carsen are recorded here. The project follows British Eng
 
 - Project: added a BSD 3-Clause `LICENSE`, filled in package metadata (readme, license, authors, keywords, classifiers, project URLs), and pinned `mcp>=2` to match the server API in use.
 - Docs: added a plain-language statement of the problem Carsen solves, a note on the origin of the name, and an AI-assisted-development disclosure in `docs/development.md`.
+- Docs: added `docs/agent-setup.md`, a linear install-and-serve recipe an AI agent can follow, plus a root `llms.txt` map of the documentation.
 - Storage: the per-instance chunk store is now a single SQLite database (`chunks.sqlite3`) with a contentless FTS5 lexical index, replacing the one-file-per-source JSONL layout. A served instance no longer loads the whole corpus into memory, sees indexing writes immediately, and answers `find_symbol` / `read_source` with direct queries. Legacy `chunks/` directories are imported automatically on first open.
 - Performance: the MCP runtime now builds the dense retriever, embedding provider and Qdrant client once per instance instead of rebuilding them (and reloading the embedding model) on every search.
 - Retrieval: the configured reranker is now applied to hybrid search when `retrieval.rerank` is enabled; it was previously never invoked. The default reranker model is a genuine cross-encoder.

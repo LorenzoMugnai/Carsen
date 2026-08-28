@@ -71,6 +71,7 @@ nav:
   - Home: index.md
   - Getting started:
       - Quickstart: quickstart.md
+      - Set up with an AI agent: agent-setup.md
       - Connect to an LLM: llm-integration.md
       - Academic users: academic-users.md
   - Core concepts:

@@ -65,6 +65,14 @@ uv sync --extra test
 uv run carsen status
 ```
 
+### Set up with an AI agent
+
+If you are an AI agent — or a user asking your assistant to do this — follow
+[docs/agent-setup.md](docs/agent-setup.md). It is a linear, checkable recipe from
+prerequisites to a served MCP endpoint, and the default path needs no vector
+database and no embedding model. `AGENTS.md` is the deeper guide for agents
+working on Carsen itself; [`llms.txt`](llms.txt) is a short map of the docs.
+
 Run Qdrant locally, for example with Docker:
 
 ```bash
