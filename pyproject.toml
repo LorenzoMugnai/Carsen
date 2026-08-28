@@ -50,6 +50,7 @@ pythonpath = ["src"]
 markers = [
   "model: optional tests that may download or load real embedding/reranking models",
   "smoke: optional operational smoke tests for local deployments",
+  "regression: retrieval-quality regression checks over a golden dataset",
 ]
 
 [tool.ruff]

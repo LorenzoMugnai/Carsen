@@ -25,4 +25,6 @@ For release validation beyond CI, run two local smoke checks:
 
 ## Evaluation fixtures
 
-Retrieval evaluation datasets are YAML files with `queries`, each containing a `query` string and an `expected` list of chunk IDs. The built-in evaluator reports Recall@k and MRR over SearchResult-like outputs without loading models.
+Retrieval evaluation datasets are YAML files with `queries`, each containing a `query` string and an `expected` list. Each `expected` entry matches a result by chunk id or by source path, so golden datasets can reference stable source paths. The built-in evaluator reports Recall@k and MRR over SearchResult-like outputs without loading models.
+
+`tests/test_retrieval_regression.py` (marked `@pytest.mark.regression`) indexes `docs/` in sparse-only mode and runs `tests/datasets/carsen_self_docs_eval.yaml` through the runtime, asserting recall and MRR thresholds. It runs in CI and guards the sparse scorer and tokeniser against silent quality regressions. Run just this check with `pytest -m regression`.

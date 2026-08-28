@@ -1,0 +1,30 @@
+# Golden retrieval dataset over Carsen's own documentation.
+# `expected` entries are source paths (relative to docs/); a result matches by
+# source path or chunk id. Used by tests/test_retrieval_regression.py.
+queries:
+  - query: what is a knowledge instance and how are instances isolated
+    expected:
+      - knowledge-instances.md
+  - query: incremental indexing only reprocesses changed files
+    expected:
+      - indexing.md
+  - query: reciprocal rank fusion combines dense and sparse candidates
+    expected:
+      - retrieval.md
+      - adr/0004-hybrid-dense-sparse-retrieval.md
+  - query: why does each knowledge instance get its own Qdrant collection
+    expected:
+      - adr/0002-qdrant-per-instance-collections.md
+  - query: citations point back to source metadata instead of fabricated references
+    expected:
+      - adr/0005-metadata-backed-citations.md
+      - citations.md
+  - query: run retrieval without a GPU or a Qdrant server
+    expected:
+      - configuration.md
+  - query: serve a knowledge instance over stdio or http transport
+    expected:
+      - mcp.md
+  - query: connect an MCP client and external LLM to Carsen
+    expected:
+      - llm-integration.md
