@@ -57,6 +57,29 @@ def test_qdrant_upsert_search_payload_and_filters() -> None:
     assert results[0].metadata["content_hash"] == chunks[0].content_hash
 
 
+def test_qdrant_filters_metadata_equality_lists_and_path_prefix() -> None:
+    client = QdrantClient(":memory:")
+    embeddings = FakeEmbeddingProvider(dimensions=8)
+    store = QdrantVectorStore(client, "kb_filters", dimensions=8)
+    store.recreate_collection()
+    chunks = [
+        Chunk("kb", "src/a.py", "function", "a", 1, 2, "target alpha", metadata={"source_type": "code"}),
+        Chunk("kb", "docs/b.md", "markdown", None, 1, 2, "target beta", metadata={"source_type": "documents"}),
+        Chunk("kb", "tests/c.py", "function", "c", 1, 2, "target gamma", metadata={"source_type": "code"}),
+    ]
+    store.upsert_chunks(chunks, embeddings.embed_texts([chunk.text for chunk in chunks]))
+    query = embeddings.embed_query("target")
+
+    code_only = store.search(query, limit=10, filters={"source_type": "code"})
+    assert {result.metadata["source_path"] for result in code_only} == {"src/a.py", "tests/c.py"}
+
+    either = store.search(query, limit=10, filters={"source_type": ["code", "documents"]})
+    assert len(either) == 3
+
+    prefixed = store.search(query, limit=10, filters={"source_type": "code", "path_prefix": "src/"})
+    assert {result.metadata["source_path"] for result in prefixed} == {"src/a.py"}
+
+
 def test_qdrant_delete_by_source_path() -> None:
     client = QdrantClient(":memory:")
     embeddings = FakeEmbeddingProvider(dimensions=8)

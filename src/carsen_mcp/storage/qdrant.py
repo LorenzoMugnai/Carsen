@@ -2,14 +2,31 @@
 
 from __future__ import annotations
 
+import warnings
 from typing import Any, cast
 from uuid import NAMESPACE_URL, uuid5
 
 from qdrant_client import QdrantClient
-from qdrant_client.http.models import Distance, FieldCondition, Filter, MatchValue, PointStruct, VectorParams
+from qdrant_client.http.models import (
+    Distance,
+    FieldCondition,
+    Filter,
+    MatchAny,
+    MatchValue,
+    PayloadSchemaType,
+    PointStruct,
+    VectorParams,
+)
 
 from carsen_mcp.chunks.model import Chunk
 from carsen_mcp.retrieval import SearchResult
+
+#: Metadata keys promoted to top-level payload fields and given a payload index
+#: so server-side filtering matches the sparse retriever's filter semantics.
+FILTERABLE_KEYS = ("knowledge_id", "source_path", "kind", "source_type", "document_type", "language", "repository_name")
+
+#: Filter keys applied client-side because they are prefix predicates, not equality.
+PREFIX_FILTER_KEYS = ("path_prefix", "source_path_prefix")
 
 
 class QdrantVectorStore:
@@ -30,12 +47,29 @@ class QdrantVectorStore:
             collection_name=self.collection_name,
             vectors_config=VectorParams(size=self.dimensions, distance=self.distance),
         )
+        self._ensure_payload_indexes()
 
     def ensure_collection(self) -> None:
         """Create this instance collection when it does not already exist."""
 
         if not self.client.collection_exists(self.collection_name):
             self.recreate_collection()
+
+    def _ensure_payload_indexes(self) -> None:
+        """Index the keyword fields Carsen filters on; ignore backends that lack the API."""
+
+        with warnings.catch_warnings():
+            # Local (in-memory / on-disk) Qdrant warns that payload indexes are a no-op.
+            warnings.simplefilter("ignore")
+            for field_name in FILTERABLE_KEYS:
+                try:
+                    self.client.create_payload_index(
+                        collection_name=self.collection_name,
+                        field_name=field_name,
+                        field_schema=PayloadSchemaType.KEYWORD,
+                    )
+                except Exception:  # noqa: BLE001 - local mode and existing indexes are non-fatal
+                    pass
 
     def delete_collection(self) -> bool:
         """Delete only this instance collection when it exists."""
@@ -61,10 +95,14 @@ class QdrantVectorStore:
 
     def search(self, query_vector: list[float], limit: int, filters: dict[str, Any] | None = None) -> list[SearchResult]:
         self.ensure_collection()
+        prefixes = [str(filters[key]) for key in PREFIX_FILTER_KEYS if filters and key in filters]
+        # Over-fetch when a client-side prefix predicate is present so the final
+        # slice still returns up to ``limit`` matches.
+        query_limit = limit if not prefixes else max(limit * 4, limit + 20)
         response = self.client.query_points(
             collection_name=self.collection_name,
             query=query_vector,
-            limit=limit,
+            limit=query_limit,
             query_filter=_filter(filters),
             with_payload=True,
         )
@@ -72,6 +110,8 @@ class QdrantVectorStore:
         results: list[SearchResult] = []
         for point in points:
             payload = dict(point.payload or {})
+            if prefixes and not any(str(payload.get("source_path", "")).startswith(prefix) for prefix in prefixes):
+                continue
             results.append(
                 SearchResult(
                     chunk_id=str(payload.get("chunk_id", point.id)),
@@ -80,7 +120,7 @@ class QdrantVectorStore:
                     metadata=payload,
                 )
             )
-        return results
+        return results[:limit]
 
 
 def _point_id(chunk_id: str) -> str:
@@ -101,6 +141,12 @@ def _payload(chunk: Chunk) -> dict[str, Any]:
         "citation": chunk.metadata.get("citation"),
         "citation_url": chunk.metadata.get("citation_url"),
     }
+    # Promote well-known filterable metadata to top-level keys so dense filters
+    # use the same names as the sparse retriever (which reads chunk.metadata).
+    for key in FILTERABLE_KEYS:
+        value = chunk.metadata.get(key)
+        if isinstance(value, str | int | float | bool):
+            payload.setdefault(key, value)
     payload.update({f"metadata_{key}": value for key, value in chunk.metadata.items() if isinstance(value, str | int | float | bool) or value is None})
     return payload
 
@@ -108,7 +154,15 @@ def _payload(chunk: Chunk) -> dict[str, Any]:
 def _filter(filters: dict[str, Any] | None) -> Filter | None:
     if not filters:
         return None
-    return Filter(must=[FieldCondition(key=key, match=MatchValue(value=value)) for key, value in filters.items()])
+    conditions: list[Any] = []
+    for key, value in filters.items():
+        if key in PREFIX_FILTER_KEYS:
+            continue
+        if isinstance(value, list | tuple | set | frozenset):
+            conditions.append(FieldCondition(key=key, match=MatchAny(any=list(value))))
+        else:
+            conditions.append(FieldCondition(key=key, match=MatchValue(value=value)))
+    return Filter(must=conditions) if conditions else None
 
 
 def qdrant_store_from_config(config: Any, dimensions: int, client: QdrantClient | None = None) -> QdrantVectorStore:

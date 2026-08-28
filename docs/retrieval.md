@@ -25,7 +25,15 @@ Set `retrieval.rerank: true` to rerank fused candidates with `models.reranker` b
 
 ## Filters
 
-Filters are simple metadata equality checks. MCP `search_code` applies `source_type: code` and falls back to `document_type: code` if needed. `search_documents` applies `source_type: documents`.
+Filters are metadata predicates applied consistently across the sparse and dense paths:
+
+- a scalar value matches by equality (`{"source_type": "code"}`);
+- a list, tuple or set matches any of its members (`{"language": ["python", "rust"]}`);
+- `path_prefix` / `source_path_prefix` match sources whose path starts with the given string.
+
+Dense filtering uses top-level Qdrant payload fields with keyword payload indexes (`knowledge_id`, `source_path`, `kind`, `source_type`, `document_type`, `language`, `repository_name`); prefix predicates are applied client-side after the vector query. Changing which metadata is promoted requires `carsen reembed`.
+
+MCP `search_code` applies `source_type: code` and falls back to `document_type: code` if needed. `search_documents` applies `source_type: documents`.
 
 ## CLI search and diagnostics
 
