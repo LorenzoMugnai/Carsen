@@ -20,9 +20,19 @@ from carsen_mcp.retrieval import (
     HybridRetriever,
     SearchResult,
     SourceExpander,
-    SparseRetriever,
 )
 from carsen_mcp.storage import QdrantVectorStore, qdrant_store_from_config
+
+
+class _StoreSparseRetriever:
+    """Adapt ``ChunkStore.search_sparse`` to the ``TextRetriever`` protocol."""
+
+    def __init__(self, store: ChunkStore, knowledge_id: str) -> None:
+        self._store = store
+        self._knowledge_id = knowledge_id
+
+    def search(self, query: str, limit: int = 10, filters: dict[str, Any] | None = None) -> list[SearchResult]:
+        return self._store.search_sparse(query, limit=limit, filters=filters, knowledge_id=self._knowledge_id)
 
 
 class InstanceRuntime:
@@ -36,66 +46,21 @@ class InstanceRuntime:
         self.formatter = CitationFormatter()
         self.embedding_provider = embedding_provider
         self.vector_store = vector_store
-        self._chunks_cache: list[Chunk] | None = None
-        self._sparse_cache: SparseRetriever | None = None
+        self._sparse_retriever = _StoreSparseRetriever(self.store, config.knowledge.id)
         self._dense_cache: DenseRetriever | None = None
         self._reranker_cache: Reranker | None = None
         self._reranker_loaded = False
-        self._generation: int | None = None
-        self._symbol_index: dict[str, list[Chunk]] | None = None
-        self._chunk_by_id: dict[str, Chunk] | None = None
-        self._chunk_by_source: dict[str, Chunk] | None = None
-
-    def _maybe_reload(self) -> None:
-        """Drop chunk-derived caches when an indexing run has changed the store.
-
-        A served instance keeps chunks and the sparse index in memory; without
-        this check it would answer from a stale snapshot until the process
-        restarts, even while ``carsen index`` or a watch thread refreshes data.
-        """
-
-        generation = self.store.generation()
-        if self._generation is not None and generation != self._generation:
-            self._chunks_cache = None
-            self._sparse_cache = None
-            self._symbol_index = None
-            self._chunk_by_id = None
-            self._chunk_by_source = None
-        self._generation = generation
-
-    def _symbol_map(self) -> dict[str, list[Chunk]]:
-        if self._symbol_index is None:
-            index: dict[str, list[Chunk]] = {}
-            for chunk in self.chunks:
-                if chunk.symbol:
-                    index.setdefault(chunk.symbol, []).append(chunk)
-            self._symbol_index = index
-        return self._symbol_index
-
-    def _build_chunk_lookup(self) -> None:
-        by_id: dict[str, Chunk] = {}
-        by_source: dict[str, Chunk] = {}
-        for chunk in self.chunks:
-            by_id.setdefault(chunk.chunk_id, chunk)
-            by_source.setdefault(chunk.source_path, chunk)
-            source_id = chunk.metadata.get("source_id")
-            if isinstance(source_id, str):
-                by_source.setdefault(source_id, chunk)
-        self._chunk_by_id = by_id
-        self._chunk_by_source = by_source
-
-    @property
-    def chunks(self) -> list[Chunk]:
-        self._maybe_reload()
-        if self._chunks_cache is None:
-            self._chunks_cache = [chunk for chunk in self.store.load_all_chunks() if chunk.knowledge_id == self.config.knowledge.id]
-        return self._chunks_cache
 
     def knowledge_info(self) -> dict[str, Any]:
         self._log_tool_call("knowledge_info")
-        chunks = self.chunks
-        sources = {chunk.source_path for chunk in chunks}
-        return {"knowledge_id": self.config.knowledge.id, "name": self.config.knowledge.name, "description": self.config.knowledge.description, "chunk_count": len(chunks), "source_count": len(sources)}
+        knowledge_id = self.config.knowledge.id
+        return {
+            "knowledge_id": knowledge_id,
+            "name": self.config.knowledge.name,
+            "description": self.config.knowledge.description,
+            "chunk_count": self.store.count(knowledge_id),
+            "source_count": self.store.source_count(knowledge_id),
+        }
 
     def search_knowledge(self, query: str, limit: int = 8, filters: dict[str, Any] | None = None) -> list[dict[str, Any]]:
         self._log_tool_call("search_knowledge", limit=limit, filters=filters)
@@ -111,21 +76,21 @@ class InstanceRuntime:
     def search_code(self, query: str, limit: int = 8, filters: dict[str, Any] | None = None) -> list[dict[str, Any]]:
         self._log_tool_call("search_code", limit=limit, filters=filters)
         merged = {**(filters or {}), "source_type": "code"}
-        results = self._sparse(None).search(query, limit=limit, filters=cast(dict[str, object], merged))
+        results = self._sparse_retriever.search(query, limit=limit, filters=merged)
         if not results:
             merged.pop("source_type")
             merged.setdefault("document_type", "code")
-            results = self._sparse(None).search(query, limit=limit, filters=cast(dict[str, object], merged))
+            results = self._sparse_retriever.search(query, limit=limit, filters=merged)
         return [self._serialise_result(result) for result in results]
 
     def search_documents(self, query: str, limit: int = 8, filters: dict[str, Any] | None = None) -> list[dict[str, Any]]:
         self._log_tool_call("search_documents", limit=limit, filters=filters)
         merged = {**(filters or {}), "source_type": "documents"}
-        return [self._serialise_result(result) for result in self._sparse(None).search(query, limit=limit, filters=cast(dict[str, object], merged))]
+        return [self._serialise_result(result) for result in self._sparse_retriever.search(query, limit=limit, filters=merged)]
 
     def find_symbol(self, symbol: str, limit: int = 8) -> list[dict[str, Any]]:
         self._log_tool_call("find_symbol", limit=limit)
-        matches = self._symbol_map().get(symbol, [])[:limit]
+        matches = self.store.find_symbol(symbol, limit=limit, knowledge_id=self.config.knowledge.id)
         return [self._serialise_result(self._chunk_to_result(chunk)) for chunk in matches]
 
     def read_source(self, source_id: str | None = None, chunk_id: str | None = None, previous: int = 0, next: int = 0) -> dict[str, Any]:
@@ -133,7 +98,7 @@ class InstanceRuntime:
         target = self._find_chunk(source_id=source_id, chunk_id=chunk_id)
         if target is None:
             return {"found": False, "source_id": source_id, "chunk_id": chunk_id}
-        expanded = SourceExpander(self.chunks).surrounding_code(target, before=previous, after=next)
+        expanded = SourceExpander(self.store.chunks_for_source(target.source_path)).surrounding_code(target, before=previous, after=next)
         return {"found": True, "chunk": self._serialise_chunk(target, include_text=True), "chunks": [self._serialise_chunk(cast(Chunk, chunk), include_text=True) for chunk in expanded]}
 
     def get_source_metadata(self, source_id: str | None = None, chunk_id: str | None = None) -> dict[str, Any]:
@@ -149,7 +114,7 @@ class InstanceRuntime:
         if target is None:
             return []
         query = " ".join(part for part in [target.symbol, target.metadata.get("heading"), target.text[:200]] if part)
-        results = [result for result in self._sparse(None).search(query, limit=limit + 1) if result.chunk_id != target.chunk_id]
+        results = [result for result in self._sparse_retriever.search(query, limit=limit + 1) if result.chunk_id != target.chunk_id]
         return [self._serialise_result(result) for result in results[:limit]]
 
     def _log_tool_call(self, tool_name: str, **metadata: Any) -> None:
@@ -162,15 +127,6 @@ class InstanceRuntime:
                 metadata["filter_keys"] = []
         safe_parts.extend(f"{key}={value}" for key, value in metadata.items())
         print("Carsen MCP tool call: " + " ".join(safe_parts), file=sys.stderr, flush=True)
-
-    def _sparse(self, filters: dict[str, Any] | None) -> SparseRetriever:
-        chunks = self.chunks
-        if filters:
-            chunks = [chunk for chunk in chunks if all(chunk.metadata.get(k) == v for k, v in filters.items())]
-            return SparseRetriever(chunks=chunks)
-        if self._sparse_cache is None:
-            self._sparse_cache = SparseRetriever(chunks=chunks)
-        return self._sparse_cache
 
     def _dense_retriever(self) -> DenseRetriever:
         """Build the dense retriever once and reuse it across tool calls.
@@ -201,7 +157,7 @@ class InstanceRuntime:
         return self._search_with_debug(query, limit, filters)[0]
 
     def _search_with_debug(self, query: str, limit: int, filters: dict[str, Any] | None) -> tuple[list[SearchResult], dict[str, Any]]:
-        sparse = self._sparse(None)
+        sparse = self._sparse_retriever
         if self.config.retrieval.dense_candidates == 0:
             results = sparse.search(query, limit=limit, filters=filters)
             return results, {"mode": "sparse_only", "sparse_candidates": len(results), "ranking": [self._redacted_result(result) for result in results]}
@@ -244,13 +200,12 @@ class InstanceRuntime:
             }
 
     def _find_chunk(self, source_id: str | None = None, chunk_id: str | None = None) -> Chunk | None:
-        if self._chunk_by_id is None or self._chunk_by_source is None:
-            self._build_chunk_lookup()
-        assert self._chunk_by_id is not None and self._chunk_by_source is not None
-        if chunk_id and chunk_id in self._chunk_by_id:
-            return self._chunk_by_id[chunk_id]
+        if chunk_id:
+            found = self.store.get_chunk(chunk_id)
+            if found is not None:
+                return found
         if source_id:
-            return self._chunk_by_source.get(source_id)
+            return self.store.chunk_by_source(source_id)
         return None
 
     def _chunk_to_result(self, chunk: Chunk) -> SearchResult:

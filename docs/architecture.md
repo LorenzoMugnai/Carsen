@@ -20,7 +20,7 @@ flowchart LR
 - `carsen_mcp.registry`: local registry discovery and starter configuration creation.
 - `carsen_mcp.ingestion`: file discovery, Git metadata, incremental state and indexing.
 - `carsen_mcp.parsers`: Python, Markdown, document and text parsing.
-- `carsen_mcp.chunks`: deterministic chunk model and local chunk persistence.
+- `carsen_mcp.chunks`: deterministic chunk model and per-instance SQLite chunk store with an FTS5 lexical index.
 - `carsen_mcp.retrieval`: sparse retrieval, dense/hybrid abstractions, RRF fusion, filters and diagnostics.
 - `carsen_mcp.citations`: metadata-backed citation formatting.
 - `carsen_mcp.mcp`: MCP server factory and per-instance runtime.

@@ -85,7 +85,7 @@ def test_indexer_persists_chunks_and_reports(tmp_path: Path) -> None:
     )
     report = index_config(cfg)
     assert report.new == 1 and report.chunks >= 2
-    assert list((tmp_path / "data" / "chunks").glob("*.jsonl"))
+    assert (tmp_path / "data" / "chunks.sqlite3").exists()
 
 
 def test_indexer_removes_chunks_for_files_that_become_ignored(tmp_path: Path) -> None:

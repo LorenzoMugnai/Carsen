@@ -110,9 +110,10 @@ def instance_metadata(config: CarsenConfig) -> dict[str, Any]:
     data_directory = config.storage.data_directory
     if data_directory is not None:
         try:
-            chunks = [chunk for chunk in ChunkStore(data_directory).load_all_chunks() if chunk.knowledge_id == config.knowledge.id]
-            chunk_count = len(chunks)
-            source_count = len({chunk.source_path for chunk in chunks})
+            store = ChunkStore(data_directory)
+            chunk_count = store.count(config.knowledge.id)
+            source_count = store.source_count(config.knowledge.id)
+            store.close()
         except Exception:
             chunk_count = 0
             source_count = 0

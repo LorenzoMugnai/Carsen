@@ -15,7 +15,7 @@ flowchart TD
 
 ## Sparse search
 
-Sparse retrieval tokenises source-like text, preserving dotted identifiers. It scores chunk text plus symbol, source path and kind, with additional boosts for exact or partial symbol matches.
+Sparse retrieval tokenises source-like text, preserving dotted identifiers, and runs the query against the per-instance SQLite FTS5 index (BM25, with the text, symbol and path columns weighted). Exact and partial symbol matches, path matches and XML-path matches add the same score bonuses on the returned candidates. The in-memory `SparseRetriever` remains as the reference implementation and for callers that already hold a chunk list.
 
 ## Hybrid pipeline primitives
 
