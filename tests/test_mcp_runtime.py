@@ -198,6 +198,33 @@ def test_runtime_does_not_build_reranker_when_disabled(tmp_path: Path) -> None:
     assert runtime._reranker() is None
 
 
+def test_runtime_dense_failure_falls_back_to_sparse_with_redacted_diagnostics(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    config = cfg(tmp_path, "alpha")
+    config.retrieval.dense_candidates = 5
+    populate(config, [chunk("alpha", "src/a.py", "a", "calibrate detector routine", 0, source_type="code")])
+
+    class BrokenStore:
+        def search(self, query_vector: list[float], limit: int, filters: dict[str, object] | None = None):
+            raise ConnectionError("could not connect to http://user:secretpw@qdrant:6333")
+
+    runtime = InstanceRuntime(config, embedding_provider=FakeEmbeddingProvider(8), vector_store=BrokenStore())  # type: ignore[arg-type]
+
+    debug = runtime.search_debug("calibrate detector", limit=2)
+    diagnostics = debug["diagnostics"]
+
+    assert diagnostics["mode"] == "sparse_fallback"
+    assert diagnostics["degraded"] is True
+    assert diagnostics["fallback_category"] == "service_unavailable"
+    assert "secretpw" not in diagnostics["fallback_detail"]
+    assert debug["results"][0]["metadata"]["source_path"] == "src/a.py"
+
+    stderr = capsys.readouterr().err
+    assert "dense retrieval unavailable" in stderr
+    assert "secretpw" not in stderr
+
+
 def test_runtime_xml_fact_query_returns_focused_detector_chunk(tmp_path: Path) -> None:
     config = cfg(tmp_path, "alpha")
     target = Chunk(

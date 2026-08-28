@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 import sys
 from dataclasses import asdict
 from pathlib import Path
@@ -181,8 +182,24 @@ class InstanceRuntime:
                 "reranker_error": diagnostics.reranker_error,
             }
         except Exception as exc:
+            category = _fallback_category(exc)
+            detail = _redact_secrets(_compact_exception(exc))
+            print(
+                f"Carsen MCP dense retrieval unavailable: instance={self.config.knowledge.id} "
+                f"category={category} error={exc.__class__.__name__}: {detail}; serving sparse results.",
+                file=sys.stderr,
+                flush=True,
+            )
             results = sparse.search(query, limit=limit, filters=filters)
-            return results, {"mode": "sparse_fallback", "fallback_reason": exc.__class__.__name__, "sparse_candidates": len(results), "ranking": [self._redacted_result(result) for result in results]}
+            return results, {
+                "mode": "sparse_fallback",
+                "degraded": True,
+                "fallback_reason": exc.__class__.__name__,
+                "fallback_category": category,
+                "fallback_detail": detail,
+                "sparse_candidates": len(results),
+                "ranking": [self._redacted_result(result) for result in results],
+            }
 
     def _find_chunk(self, source_id: str | None = None, chunk_id: str | None = None) -> Chunk | None:
         for chunk in self.chunks:
@@ -209,3 +226,44 @@ class InstanceRuntime:
         if not include_text:
             data.pop("text", None)
         return data
+
+
+_SECRET_RE = re.compile(r"(://)[^/\s:@]+:[^/\s@]+@")
+_TOKEN_RE = re.compile(r"\b(api[_-]?key|token|secret|password|bearer)\b\s*[=:]\s*\S+", re.IGNORECASE)
+
+
+def _redact_secrets(text: str) -> str:
+    """Strip embedded credentials and obvious secrets from a diagnostic string."""
+
+    redacted = _SECRET_RE.sub(r"\1***@", text)
+    return _TOKEN_RE.sub(lambda match: f"{match.group(1)}=***", redacted)
+
+
+def _compact_exception(exc: BaseException, limit: int = 200) -> str:
+    """Return a short single-line message for an exception and its cause."""
+
+    seen: list[str] = []
+    current: BaseException | None = exc
+    while current is not None and len(seen) < 3:
+        message = str(current).strip().replace("\n", " ")
+        if message and message not in seen:
+            seen.append(message)
+        current = current.__cause__ or current.__context__
+    joined = ": ".join(seen) or exc.__class__.__name__
+    return joined[:limit]
+
+
+def _fallback_category(exc: BaseException) -> str:
+    """Classify why the dense path failed so operators know where to look."""
+
+    if isinstance(exc, ModuleNotFoundError | ImportError):
+        return "missing_dependency"
+    if isinstance(exc, ValueError | TypeError | KeyError):
+        return "configuration"
+    name = exc.__class__.__name__.lower()
+    text = str(exc).lower()
+    if "connect" in name or "connection" in text or "timeout" in name or "timed out" in text or "refused" in text:
+        return "service_unavailable"
+    if "dimension" in text or "vector" in text or "collection" in text:
+        return "index"
+    return "unknown"
