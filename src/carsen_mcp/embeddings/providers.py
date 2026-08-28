@@ -55,6 +55,7 @@ class SentenceTransformersEmbeddingProvider:
         device: str | None = None,
         batch_size: int = 8,
         max_seq_length: int | None = 1024,
+        query_instruction: str | None = None,
     ) -> None:
         if batch_size < 1:
             raise ValueError("embedding batch size must be positive")
@@ -63,6 +64,7 @@ class SentenceTransformersEmbeddingProvider:
         self.device = device
         self.batch_size = batch_size
         self.max_seq_length = max_seq_length
+        self.query_instruction = query_instruction or None
         self._model: Any | None = None
 
     def _load_model(self) -> Any:
@@ -94,7 +96,24 @@ class SentenceTransformersEmbeddingProvider:
         return [list(map(float, vector)) for vector in vectors]
 
     def embed_query(self, text: str) -> list[float]:
-        return self.embed_texts([text])[0]
+        """Embed a search query, applying the asymmetric query instruction if set.
+
+        Retrieval models such as Qwen3-Embedding and E5 expect a task prefix on
+        the query but not on stored documents; ``query_instruction`` is prepended
+        here only, leaving :meth:`embed_texts` (used for indexing) untouched.
+        """
+
+        if not self.query_instruction:
+            return self.embed_texts([text])[0]
+        model = self._load_model()
+        vectors = model.encode(
+            [text],
+            batch_size=1,
+            convert_to_numpy=False,
+            normalize_embeddings=True,
+            prompt=self.query_instruction,
+        )
+        return list(map(float, vectors[0]))
 
 
 def embedding_provider_from_config(config: ModelProviderConfig) -> EmbeddingProvider:
@@ -111,5 +130,6 @@ def embedding_provider_from_config(config: ModelProviderConfig) -> EmbeddingProv
             device=device,
             batch_size=config.batch_size,
             max_seq_length=config.max_seq_length,
+            query_instruction=config.query_instruction,
         )
     raise ValueError(f"unsupported embedding provider: {config.provider}")
