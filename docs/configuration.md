@@ -68,7 +68,11 @@ policy:
 - Set `retrieval.dense_candidates: 0` for sparse/exact-only operation. In this mode Carsen does not load the embedding model during search, which is useful on CPU-only or low-memory machines.
 - `models.embedding.batch_size` bounds local embedding calls during indexing and provider encoding. Lower it for memory-constrained machines. `models.embedding.max_seq_length` caps Sentence Transformers token length so oversized chunks are truncated before encoding.
 - `models.embedding.query_instruction` is prepended to search queries only, never to indexed documents. Asymmetric retrieval models (Qwen3-Embedding, E5, BGE) expect a task instruction on the query side; leave it unset for symmetric models.
-- `models.embedding.provider` selects the embedding backend: `sentence_transformers` (PyTorch), `fastembed` (ONNX, no PyTorch, install `carsen-mcp[fastembed]` and set an explicit `dimensions`), or `fake` for tests.
+- `models.embedding.provider` selects the embedding backend:
+    - `sentence_transformers` — local PyTorch models.
+    - `fastembed` — local ONNX models, no PyTorch; install `carsen-mcp[fastembed]` and set an explicit `dimensions`.
+    - `openai` / `openai_compatible` — an OpenAI-style `/embeddings` HTTP endpoint (OpenAI, Ollama, TEI, Infinity). Set `base_url` (defaulted for `openai`), an explicit `dimensions` matching the endpoint, optional `api_key_env` naming the environment variable holding the key (`OPENAI_API_KEY` by default for `openai`), and `timeout`.
+    - `fake` — deterministic vectors for tests.
 - Embeddings and Qdrant are optional for indexing and MCP retrieval. Plain `carsen index` builds local chunks for sparse/exact search. `carsen index --embed` warns if the optional dense phase fails, while `carsen reembed` remains dense-only and reports failures as errors.
 - `indexing.watch` enables foreground/background filesystem watch indexing. `watch_debounce_seconds` coalesces rapid file events, and `watch_embed` also refreshes dense vectors after watched changes.
 - `parsing.documents` controls optional Docling document parsing. PDF parsing defaults to fast text extraction: OCR and table structure are disabled, and backend text is preferred.

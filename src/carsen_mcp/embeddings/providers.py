@@ -4,7 +4,12 @@ from __future__ import annotations
 
 import hashlib
 import importlib
+import json
 import math
+import os
+import time
+import urllib.error
+import urllib.request
 from typing import Any, Protocol
 
 from carsen_mcp.config import ModelProviderConfig
@@ -153,6 +158,75 @@ class FastEmbedEmbeddingProvider:
         return list(map(float, vectors[0]))
 
 
+class OpenAICompatibleEmbeddingProvider:
+    """Call an OpenAI-style ``/embeddings`` endpoint over HTTP (stdlib only).
+
+    Works with the OpenAI API and OpenAI-compatible servers such as Ollama,
+    text-embeddings-inference (TEI) and Infinity, so retrieval needs no local
+    model or PyTorch. ``dimensions`` must be set in configuration and must match
+    the endpoint's output for the Qdrant collection to be created correctly.
+    """
+
+    def __init__(
+        self,
+        model_name: str,
+        base_url: str,
+        dimensions: int,
+        api_key: str | None = None,
+        batch_size: int = 32,
+        timeout: float = 30.0,
+        query_instruction: str | None = None,
+        max_retries: int = 3,
+    ) -> None:
+        if dimensions < 1:
+            raise ValueError("the openai embedding provider requires models.embedding.dimensions to be set")
+        self.model_name = model_name
+        self.base_url = base_url.rstrip("/")
+        self.dimensions = dimensions
+        self.api_key = api_key or None
+        self.batch_size = max(1, batch_size)
+        self.timeout = timeout
+        self.query_instruction = query_instruction or None
+        self.max_retries = max(1, max_retries)
+
+    def _post(self, inputs: list[str]) -> list[list[float]]:
+        payload = json.dumps({"model": self.model_name, "input": inputs}).encode("utf-8")
+        headers = {"Content-Type": "application/json"}
+        if self.api_key:
+            headers["Authorization"] = f"Bearer {self.api_key}"
+        request = urllib.request.Request(f"{self.base_url}/embeddings", data=payload, headers=headers, method="POST")
+        last_error: Exception | None = None
+        for attempt in range(self.max_retries):
+            try:
+                with urllib.request.urlopen(request, timeout=self.timeout) as response:  # noqa: S310 - configured endpoint
+                    body = json.loads(response.read().decode("utf-8"))
+                rows = sorted(body["data"], key=lambda item: item.get("index", 0))
+                return [list(map(float, row["embedding"])) for row in rows]
+            except urllib.error.HTTPError as exc:
+                detail = exc.read().decode("utf-8", "replace")[:200]
+                last_error = RuntimeError(f"embedding endpoint returned HTTP {exc.code}: {detail}")
+                if exc.code not in (408, 409, 425, 429, 500, 502, 503, 504):
+                    raise last_error from exc
+            except (urllib.error.URLError, TimeoutError, ConnectionError, json.JSONDecodeError, KeyError) as exc:
+                last_error = RuntimeError(f"embedding endpoint request failed: {exc}")
+            if attempt + 1 < self.max_retries:
+                time.sleep(0.5 * (2**attempt))
+        raise last_error or RuntimeError("embedding endpoint request failed")
+
+    def embed_texts(self, texts: list[str]) -> list[list[float]]:
+        vectors: list[list[float]] = []
+        for start in range(0, len(texts), self.batch_size):
+            vectors.extend(self._post(texts[start : start + self.batch_size]))
+        return vectors
+
+    def embed_query(self, text: str) -> list[float]:
+        prefixed = f"{self.query_instruction}{text}" if self.query_instruction else text
+        return self._post([prefixed])[0]
+
+
+_OPENAI_DEFAULT_BASE_URL = "https://api.openai.com/v1"
+
+
 def embedding_provider_from_config(config: ModelProviderConfig) -> EmbeddingProvider:
     """Build an embedding provider from model configuration without eager model loading."""
 
@@ -173,6 +247,21 @@ def embedding_provider_from_config(config: ModelProviderConfig) -> EmbeddingProv
         return FastEmbedEmbeddingProvider(
             config.model,
             dimensions=config.dimensions or 0,
+            query_instruction=config.query_instruction,
+        )
+    if provider in {"openai", "openai_compatible", "tei", "infinity"}:
+        is_openai = provider == "openai"
+        base_url = config.base_url or (_OPENAI_DEFAULT_BASE_URL if is_openai else None)
+        if not base_url:
+            raise ValueError("models.embedding.base_url is required for the openai_compatible provider")
+        api_key_env = config.api_key_env or ("OPENAI_API_KEY" if is_openai else None)
+        return OpenAICompatibleEmbeddingProvider(
+            config.model,
+            base_url=base_url,
+            dimensions=config.dimensions or 0,
+            api_key=os.environ.get(api_key_env) if api_key_env else None,
+            batch_size=config.batch_size,
+            timeout=config.timeout,
             query_instruction=config.query_instruction,
         )
     raise ValueError(f"unsupported embedding provider: {config.provider}")

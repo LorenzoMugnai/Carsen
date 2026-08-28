@@ -66,6 +66,9 @@ class ModelProviderConfig(BaseModel):
     batch_size: int = Field(default=8, ge=1)
     max_seq_length: int | None = Field(default=1024, ge=1)
     query_instruction: str | None = None
+    base_url: str | None = None
+    api_key_env: str | None = None
+    timeout: float = Field(default=30.0, gt=0)
 
 
 class ModelsConfig(BaseModel):

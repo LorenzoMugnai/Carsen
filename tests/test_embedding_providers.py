@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import types
 
 import pytest
@@ -7,6 +8,7 @@ import pytest
 from carsen_mcp.config import ModelProviderConfig
 from carsen_mcp.embeddings.providers import (
     FastEmbedEmbeddingProvider,
+    OpenAICompatibleEmbeddingProvider,
     SentenceTransformersEmbeddingProvider,
     embedding_provider_from_config,
 )
@@ -170,3 +172,90 @@ def test_embedding_provider_from_config_dispatches_fastembed() -> None:
 
     with pytest.raises(ValueError):
         embedding_provider_from_config(ModelProviderConfig(provider="fastembed", model="BAAI/bge-small-en-v1.5"))
+
+
+class _FakeResponse:
+    def __init__(self, body: bytes) -> None:
+        self._body = body
+
+    def read(self) -> bytes:
+        return self._body
+
+    def __enter__(self) -> _FakeResponse:
+        return self
+
+    def __exit__(self, *exc: object) -> bool:
+        return False
+
+
+def test_openai_compatible_provider_batches_authorises_and_prefixes(monkeypatch) -> None:
+    calls: list[tuple[str, str | None, dict]] = []
+
+    def fake_urlopen(request, timeout=None):  # noqa: ANN001
+        payload = json.loads(request.data)
+        calls.append((request.full_url, request.get_header("Authorization"), payload))
+        data = [{"index": i, "embedding": [float(i), 0.5]} for i in range(len(payload["input"]))]
+        return _FakeResponse(json.dumps({"data": data}).encode("utf-8"))
+
+    monkeypatch.setattr("carsen_mcp.embeddings.providers.urllib.request.urlopen", fake_urlopen)
+    provider = OpenAICompatibleEmbeddingProvider(
+        "text-embedding-3-small",
+        "https://api.example/v1/",
+        dimensions=2,
+        api_key="secret-key",
+        batch_size=2,
+        query_instruction="Q: ",
+    )
+
+    vectors = provider.embed_texts(["a", "b", "c"])
+    assert len(vectors) == 3
+    assert len(calls) == 2  # batches of 2 and 1
+    assert calls[0][0] == "https://api.example/v1/embeddings"
+    assert calls[0][1] == "Bearer secret-key"
+
+    provider.embed_query("hello")
+    assert calls[-1][2]["input"] == ["Q: hello"]
+
+
+def test_openai_compatible_provider_retries_transient_failure(monkeypatch) -> None:
+    import urllib.error
+
+    attempts = {"n": 0}
+
+    def flaky_urlopen(request, timeout=None):  # noqa: ANN001
+        attempts["n"] += 1
+        if attempts["n"] == 1:
+            raise urllib.error.URLError("temporary network error")
+        return _FakeResponse(json.dumps({"data": [{"index": 0, "embedding": [1.0, 2.0]}]}).encode("utf-8"))
+
+    monkeypatch.setattr("carsen_mcp.embeddings.providers.urllib.request.urlopen", flaky_urlopen)
+    monkeypatch.setattr("carsen_mcp.embeddings.providers.time.sleep", lambda _s: None)
+    provider = OpenAICompatibleEmbeddingProvider("m", "https://api.example/v1", dimensions=2, max_retries=3)
+
+    assert provider.embed_query("q") == [1.0, 2.0]
+    assert attempts["n"] == 2
+
+
+def test_embedding_provider_from_config_dispatches_openai(monkeypatch) -> None:
+    monkeypatch.setenv("MY_EMBED_KEY", "abc123")
+    provider = embedding_provider_from_config(
+        ModelProviderConfig(
+            provider="openai_compatible",
+            model="bge-m3",
+            dimensions=1024,
+            base_url="http://localhost:8080/v1",
+            api_key_env="MY_EMBED_KEY",
+        )
+    )
+    assert isinstance(provider, OpenAICompatibleEmbeddingProvider)
+    assert provider.dimensions == 1024
+    assert provider.api_key == "abc123"
+
+    default_openai = embedding_provider_from_config(
+        ModelProviderConfig(provider="openai", model="text-embedding-3-small", dimensions=1536)
+    )
+    assert isinstance(default_openai, OpenAICompatibleEmbeddingProvider)
+    assert default_openai.base_url == "https://api.openai.com/v1"
+
+    with pytest.raises(ValueError):
+        embedding_provider_from_config(ModelProviderConfig(provider="openai_compatible", model="bge-m3", dimensions=1024))

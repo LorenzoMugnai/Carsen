@@ -27,6 +27,13 @@ models:
     # Prepended to search queries only (not to indexed documents). Asymmetric
     # retrieval models such as Qwen3-Embedding expect a task prefix on the query:
     # query_instruction: "Instruct: Given a question, retrieve relevant code and documentation\nQuery: "
+    # Remote endpoint instead of a local model (OpenAI, Ollama, TEI, Infinity):
+    # provider: openai_compatible
+    # model: bge-m3
+    # dimensions: 1024
+    # base_url: http://127.0.0.1:8080/v1
+    # api_key_env: EMBEDDINGS_API_KEY
+    # timeout: 30
   reranker:
     # Used only when retrieval.rerank is true. The sentence_transformers provider
     # expects a genuine cross-encoder checkpoint (e.g. BAAI/bge-reranker-v2-m3).
