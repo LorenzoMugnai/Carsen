@@ -16,7 +16,8 @@ All notable changes to Carsen are recorded here. The project follows British Eng
 - Operations: dense-retrieval fallback is logged with a redacted reason and classified (`missing_dependency`, `configuration`, `service_unavailable`, `index`) in search diagnostics.
 - Embeddings: added an optional `fastembed` (ONNX, no PyTorch) embedding provider for CPU-only deployments, and an `openai` / `openai_compatible` provider that calls an OpenAI-style `/embeddings` HTTP endpoint (OpenAI, Ollama, TEI, Infinity) with no extra dependency.
 - Testing: added a retrieval-quality regression gate over a golden dataset of Carsen's own documentation; evaluation datasets can now reference source paths.
-- Design: recorded a design for moving lexical retrieval onto Qdrant native sparse vectors.
+- Docs: the documentation site gains a light/dark theme toggle, a theme-aware homepage hero using the character and wordmark art, and consistent styling for tables, admonitions, code, blockquotes and Mermaid diagrams.
+- Design: recorded a design for moving lexical retrieval onto Qdrant native sparse vectors, and a design for the SQLite chunk store.
 - V1 retrieval integration: local CLI search now uses the instance runtime over canonical chunks with code/document corpus selection.
 - Added MCP client/runtime end-to-end coverage for isolated knowledge instances and local tool behaviour.
 - Added redacted search diagnostics for sparse fallback and hybrid candidate rankings.

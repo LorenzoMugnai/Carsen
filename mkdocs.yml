@@ -7,6 +7,8 @@ theme:
   name: material
   logo: assets/logo_character.png
   favicon: assets/logo_character.png
+  icon:
+    repo: fontawesome/brands/github
   features:
     - navigation.sections
     - navigation.expand
@@ -14,14 +16,37 @@ theme:
     - navigation.instant
     - navigation.instant.prefetch
     - navigation.tracking
+    - navigation.footer
+    - toc.follow
     - search.suggest
     - search.highlight
+    - search.share
     - content.code.copy
+    - content.code.annotate
     - content.tabs.link
+    - content.tooltips
   palette:
-    - scheme: default
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
       primary: deep purple
       accent: teal
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: deep purple
+      accent: teal
+      toggle:
+        icon: material/weather-night
+        name: Switch to light mode
+
+extra:
+  generator: false
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/LorenzoMugnai/Carsen
+      name: Carsen on GitHub
 
 extra_css:
   - stylesheets/extra.css

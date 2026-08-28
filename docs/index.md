@@ -6,16 +6,16 @@
 <img src="assets/logo_text.png" alt="Carsen" class="carsen-wordmark">
 
 Carsen indexes your code and documents into isolated knowledge instances, then retrieves cited context so an LLM-capable client can answer with better grounding.
+</div>
+
+<div class="carsen-hero__art" markdown>
+<img src="assets/logo_character.png" alt="Carsen, the librarian" class="carsen-hero__logo">
+</div>
 
 <div class="carsen-cta-row" markdown>
 [Start the quickstart](quickstart.md){ .md-button .md-button--primary }
 [Connect to an LLM](llm-integration.md){ .md-button }
 [Learn the concepts](concepts.md){ .md-button }
-</div>
-</div>
-
-<div class="carsen-hero__art" markdown>
-<img src="assets/logo.png" alt="Carsen logo" class="carsen-hero__logo">
 </div>
 </section>
 
