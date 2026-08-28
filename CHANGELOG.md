@@ -4,6 +4,15 @@ All notable changes to Carsen are recorded here. The project follows British Eng
 
 ## Unreleased
 
+- Performance: the MCP runtime now builds the dense retriever, embedding provider and Qdrant client once per instance instead of rebuilding them (and reloading the embedding model) on every search.
+- Retrieval: the configured reranker is now applied to hybrid search when `retrieval.rerank` is enabled; it was previously never invoked. The default reranker model is a genuine cross-encoder.
+- Retrieval: `models.embedding.query_instruction` applies an asymmetric task prefix to queries only, improving recall with models such as Qwen3-Embedding.
+- Retrieval: dense filters now share the sparse filter semantics (equality, list membership, path prefix) and Qdrant collections get keyword payload indexes on the filterable fields.
+- Operations: a running MCP server refreshes its in-memory chunks and sparse index after any indexing run, so re-indexed content no longer requires a restart.
+- Operations: dense-retrieval fallback is logged with a redacted reason and classified (`missing_dependency`, `configuration`, `service_unavailable`, `index`) in search diagnostics.
+- Embeddings: added an optional `fastembed` (ONNX, no PyTorch) embedding provider for CPU-only deployments.
+- Testing: added a retrieval-quality regression gate over a golden dataset of Carsen's own documentation; evaluation datasets can now reference source paths.
+- Design: recorded a design for moving lexical retrieval onto Qdrant native sparse vectors.
 - V1 retrieval integration: local CLI search now uses the instance runtime over canonical chunks with code/document corpus selection.
 - Added MCP client/runtime end-to-end coverage for isolated knowledge instances and local tool behaviour.
 - Added redacted search diagnostics for sparse fallback and hybrid candidate rankings.
