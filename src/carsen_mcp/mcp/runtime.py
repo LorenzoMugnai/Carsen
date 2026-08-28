@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 import sys
+import threading
 from dataclasses import asdict
 from pathlib import Path
 from typing import Any, cast
@@ -50,6 +51,9 @@ class InstanceRuntime:
         self._dense_cache: DenseRetriever | None = None
         self._reranker_cache: Reranker | None = None
         self._reranker_loaded = False
+        # Tool calls run in worker threads (HTTP transport); guard the lazy
+        # model/client construction so it happens exactly once.
+        self._init_lock = threading.Lock()
 
     def knowledge_info(self) -> dict[str, Any]:
         self._log_tool_call("knowledge_info")
@@ -137,20 +141,24 @@ class InstanceRuntime:
         """
 
         if self._dense_cache is None:
-            provider = self.embedding_provider or embedding_provider_from_config(self.config.models.embedding)
-            store = self.vector_store or qdrant_store_from_config(self.config, provider.dimensions)
-            self.embedding_provider = provider
-            self.vector_store = store
-            self._dense_cache = DenseRetriever(provider, store)
+            with self._init_lock:
+                if self._dense_cache is None:
+                    provider = self.embedding_provider or embedding_provider_from_config(self.config.models.embedding)
+                    store = self.vector_store or qdrant_store_from_config(self.config, provider.dimensions)
+                    self.embedding_provider = provider
+                    self.vector_store = store
+                    self._dense_cache = DenseRetriever(provider, store)
         return self._dense_cache
 
     def _reranker(self) -> Reranker | None:
         """Build the configured reranker once, or ``None`` when reranking is off."""
 
         if not self._reranker_loaded:
-            self._reranker_loaded = True
-            if self.config.retrieval.rerank:
-                self._reranker_cache = reranker_from_config(self.config.models.reranker)
+            with self._init_lock:
+                if not self._reranker_loaded:
+                    if self.config.retrieval.rerank:
+                        self._reranker_cache = reranker_from_config(self.config.models.reranker)
+                    self._reranker_loaded = True
         return self._reranker_cache
 
     def _search(self, query: str, limit: int, filters: dict[str, Any] | None) -> list[SearchResult]:
