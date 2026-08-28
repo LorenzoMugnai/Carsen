@@ -116,6 +116,43 @@ class SentenceTransformersEmbeddingProvider:
         return list(map(float, vectors[0]))
 
 
+class FastEmbedEmbeddingProvider:
+    """CPU-friendly ONNX embeddings via ``fastembed``, imported lazily at runtime.
+
+    ``fastembed`` avoids a PyTorch dependency, which suits CPU-only and
+    low-memory deployments. ``dimensions`` must be set in configuration because
+    the Qdrant collection is created before the first vector is produced.
+    """
+
+    def __init__(self, model_name: str, dimensions: int, query_instruction: str | None = None) -> None:
+        if dimensions < 1:
+            raise ValueError("the fastembed provider requires models.embedding.dimensions to be set")
+        self.model_name = model_name
+        self.dimensions = dimensions
+        self.query_instruction = query_instruction or None
+        self._model: Any | None = None
+
+    def _load_model(self) -> Any:
+        if self._model is None:
+            try:
+                module = importlib.import_module("fastembed")
+            except ImportError as exc:
+                raise RuntimeError("fastembed is not installed; install the optional 'fastembed' dependency") from exc
+            self._model = module.TextEmbedding(model_name=self.model_name)
+        return self._model
+
+    def embed_texts(self, texts: list[str]) -> list[list[float]]:
+        model = self._load_model()
+        return [list(map(float, vector)) for vector in model.embed(texts)]
+
+    def embed_query(self, text: str) -> list[float]:
+        model = self._load_model()
+        prefixed = f"{self.query_instruction}{text}" if self.query_instruction else text
+        query_embed = getattr(model, "query_embed", None)
+        vectors = list(query_embed([prefixed]) if callable(query_embed) else model.embed([prefixed]))
+        return list(map(float, vectors[0]))
+
+
 def embedding_provider_from_config(config: ModelProviderConfig) -> EmbeddingProvider:
     """Build an embedding provider from model configuration without eager model loading."""
 
@@ -130,6 +167,12 @@ def embedding_provider_from_config(config: ModelProviderConfig) -> EmbeddingProv
             device=device,
             batch_size=config.batch_size,
             max_seq_length=config.max_seq_length,
+            query_instruction=config.query_instruction,
+        )
+    if provider in {"fastembed", "fast_embed"}:
+        return FastEmbedEmbeddingProvider(
+            config.model,
+            dimensions=config.dimensions or 0,
             query_instruction=config.query_instruction,
         )
     raise ValueError(f"unsupported embedding provider: {config.provider}")
