@@ -49,6 +49,8 @@ Before an interactive `carsen index` run, Carsen also scans configured source ro
 
 Set `indexing.watch: true` to enable automatic indexing while serving, or run `carsen watch NAME` as a foreground watcher. File events are debounced by `indexing.watch_debounce_seconds` and coalesced into a single index pass. Set `indexing.watch_embed: true` to also refresh dense vectors after watched changes.
 
+A running MCP server tracks a chunk-store generation counter and refreshes its in-memory chunks and sparse index on the next tool call after any indexing run completes, whether that run came from a watch thread or a separate `carsen index` invocation. Restarting the server is not required to pick up re-indexed content.
+
 ## Canonical chunks
 
 Parsed content becomes deterministic `Chunk` records containing:

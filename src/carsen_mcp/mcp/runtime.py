@@ -42,9 +42,25 @@ class InstanceRuntime:
         self._dense_cache: DenseRetriever | None = None
         self._reranker_cache: Reranker | None = None
         self._reranker_loaded = False
+        self._generation: int | None = None
+
+    def _maybe_reload(self) -> None:
+        """Drop chunk-derived caches when an indexing run has changed the store.
+
+        A served instance keeps chunks and the sparse index in memory; without
+        this check it would answer from a stale snapshot until the process
+        restarts, even while ``carsen index`` or a watch thread refreshes data.
+        """
+
+        generation = self.store.generation()
+        if self._generation is not None and generation != self._generation:
+            self._chunks_cache = None
+            self._sparse_cache = None
+        self._generation = generation
 
     @property
     def chunks(self) -> list[Chunk]:
+        self._maybe_reload()
         if self._chunks_cache is None:
             self._chunks_cache = [chunk for chunk in self.store.load_all_chunks() if chunk.knowledge_id == self.config.knowledge.id]
         return self._chunks_cache

@@ -11,9 +11,29 @@ from .model import Chunk
 class ChunkStore:
     """Store canonical chunks below ``storage.data_directory/chunks``."""
 
+    GENERATION_FILE = ".generation"
+
     def __init__(self, data_directory: Path) -> None:
         self.directory = Path(data_directory) / "chunks"
         self.directory.mkdir(parents=True, exist_ok=True)
+
+    def generation(self) -> int:
+        """Return a counter that changes whenever persisted chunks are mutated.
+
+        Long-running readers (the MCP runtime) poll this to notice that an
+        indexing run has replaced chunks underneath them and refresh their caches.
+        """
+
+        try:
+            return int((self.directory / self.GENERATION_FILE).read_text(encoding="utf-8").strip() or 0)
+        except (OSError, ValueError):
+            return 0
+
+    def _bump_generation(self) -> None:
+        try:
+            (self.directory / self.GENERATION_FILE).write_text(str(self.generation() + 1), encoding="utf-8")
+        except OSError:
+            pass
 
     def replace_file_chunks(self, source_path: str, chunks: list[Chunk]) -> Path:
         digest = __import__("hashlib").sha256(source_path.encode("utf-8")).hexdigest()
@@ -21,16 +41,19 @@ class ChunkStore:
         with target.open("w", encoding="utf-8") as handle:
             for chunk in chunks:
                 handle.write(json.dumps(chunk.to_dict(), sort_keys=True) + "\n")
+        self._bump_generation()
         return target
 
     def delete_file_chunks(self, source_path: str) -> None:
         digest = __import__("hashlib").sha256(source_path.encode("utf-8")).hexdigest()
         (self.directory / f"{digest}.jsonl").unlink(missing_ok=True)
+        self._bump_generation()
 
     def delete_chunk_file(self, path: Path) -> None:
         """Remove one persisted chunk file by store path."""
 
         path.unlink(missing_ok=True)
+        self._bump_generation()
 
     def prune_unknown_sources(self, knowledge_id: str, allowed_sources: set[str]) -> int:
         """Remove chunk files for this instance whose source is no longer discoverable."""

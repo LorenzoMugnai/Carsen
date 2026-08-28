@@ -106,6 +106,21 @@ def test_runtime_reuses_loaded_chunks_between_tool_calls(tmp_path: Path, monkeyp
     assert calls == 1
 
 
+def test_runtime_reloads_after_chunk_store_changes(tmp_path: Path) -> None:
+    config = cfg(tmp_path, "alpha")
+    populate(config, [chunk("alpha", "src/a.py", "a", "alpha calibrate detector", 0, source_type="code")])
+    runtime = InstanceRuntime(config)
+
+    assert runtime.knowledge_info()["chunk_count"] == 1
+    assert runtime.search_code("beta") == []
+
+    populate(config, [chunk("alpha", "src/b.py", "b", "beta calibrate detector", 0, source_type="code")])
+
+    assert runtime.knowledge_info()["chunk_count"] == 2
+    reloaded = runtime.search_code("beta")
+    assert reloaded and reloaded[0]["metadata"]["source_path"] == "src/b.py"
+
+
 def test_runtime_reuses_sparse_retriever_between_tool_calls(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     config = cfg(tmp_path, "alpha")
     target = chunk("alpha", "config.xml", None, '<channel name="AIRS-CH1"><detector pixels="64 x 64" /></channel>', 0, source_type="documents", document_type="xml")
