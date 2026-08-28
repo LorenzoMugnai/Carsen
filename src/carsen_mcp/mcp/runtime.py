@@ -12,6 +12,7 @@ from carsen_mcp.chunks.store import ChunkStore
 from carsen_mcp.citations import CitationFormatter
 from carsen_mcp.config import CarsenConfig
 from carsen_mcp.embeddings import EmbeddingProvider, embedding_provider_from_config
+from carsen_mcp.reranking import Reranker, reranker_from_config
 from carsen_mcp.retrieval import (
     DenseRetriever,
     HybridRetrievalConfig,
@@ -38,6 +39,8 @@ class InstanceRuntime:
         self._chunks_cache: list[Chunk] | None = None
         self._sparse_cache: SparseRetriever | None = None
         self._dense_cache: DenseRetriever | None = None
+        self._reranker_cache: Reranker | None = None
+        self._reranker_loaded = False
 
     @property
     def chunks(self) -> list[Chunk]:
@@ -142,6 +145,15 @@ class InstanceRuntime:
             self._dense_cache = DenseRetriever(provider, store)
         return self._dense_cache
 
+    def _reranker(self) -> Reranker | None:
+        """Build the configured reranker once, or ``None`` when reranking is off."""
+
+        if not self._reranker_loaded:
+            self._reranker_loaded = True
+            if self.config.retrieval.rerank:
+                self._reranker_cache = reranker_from_config(self.config.models.reranker)
+        return self._reranker_cache
+
     def _search(self, query: str, limit: int, filters: dict[str, Any] | None) -> list[SearchResult]:
         return self._search_with_debug(query, limit, filters)[0]
 
@@ -158,11 +170,13 @@ class InstanceRuntime:
                 final_results=limit,
                 max_results_per_source=self.config.retrieval.max_results_per_source,
             )
-            diagnostics = HybridRetriever(dense, sparse, config=config).search_with_diagnostics(query, filters=filters)
+            reranker = self._reranker()
+            diagnostics = HybridRetriever(dense, sparse, config=config, reranker=reranker).search_with_diagnostics(query, filters=filters)
             return diagnostics.final_results, {
                 "mode": "hybrid",
                 "dense_candidates": len(diagnostics.dense_candidates),
                 "sparse_candidates": len(diagnostics.sparse_candidates),
+                "reranked": reranker is not None and diagnostics.reranker_error is None,
                 "fused_ranking": [self._redacted_result(result) for result in diagnostics.fused_ranking],
                 "reranker_error": diagnostics.reranker_error,
             }

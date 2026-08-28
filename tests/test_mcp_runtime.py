@@ -8,7 +8,7 @@ from typer.testing import CliRunner
 from carsen_mcp.chunks.model import Chunk
 from carsen_mcp.chunks.store import ChunkStore
 from carsen_mcp.cli import app
-from carsen_mcp.config import CarsenConfig, KnowledgeConfig, ServerConfig, StorageConfig
+from carsen_mcp.config import CarsenConfig, KnowledgeConfig, ModelProviderConfig, ServerConfig, StorageConfig
 from carsen_mcp.embeddings import FakeEmbeddingProvider
 from carsen_mcp.mcp.runtime import InstanceRuntime
 
@@ -158,6 +158,44 @@ def test_runtime_builds_dense_retriever_once_across_searches(tmp_path: Path, mon
     runtime.search_knowledge("another unrelated query", limit=3)
 
     assert builds == 1
+
+
+class _EmptyDenseStore:
+    def search(self, query_vector: list[float], limit: int, filters: dict[str, object] | None = None):
+        return []
+
+
+def test_runtime_applies_reranker_when_retrieval_rerank_enabled(tmp_path: Path) -> None:
+    config = cfg(tmp_path, "alpha")
+    config.retrieval.rerank = True
+    config.models.reranker = ModelProviderConfig(provider="deterministic", model="unused")
+    populate(
+        config,
+        [
+            chunk("alpha", "src/a.py", "a", "calibrate detector routine", 0, source_type="code"),
+            chunk("alpha", "src/b.py", "b", "unrelated helper", 1, source_type="code"),
+        ],
+    )
+    runtime = InstanceRuntime(config, embedding_provider=FakeEmbeddingProvider(8), vector_store=_EmptyDenseStore())  # type: ignore[arg-type]
+
+    debug = runtime.search_debug("calibrate detector", limit=2)
+
+    assert debug["diagnostics"]["mode"] == "hybrid"
+    assert debug["diagnostics"]["reranked"] is True
+    assert debug["results"][0]["metadata"]["source_path"] == "src/a.py"
+    assert "reranker_score" in debug["results"][0]["metadata"]
+
+
+def test_runtime_does_not_build_reranker_when_disabled(tmp_path: Path) -> None:
+    config = cfg(tmp_path, "alpha")
+    config.models.reranker = ModelProviderConfig(provider="deterministic", model="unused")
+    populate(config, [chunk("alpha", "src/a.py", "a", "calibrate detector routine", 0, source_type="code")])
+    runtime = InstanceRuntime(config, embedding_provider=FakeEmbeddingProvider(8), vector_store=_EmptyDenseStore())  # type: ignore[arg-type]
+
+    debug = runtime.search_debug("calibrate detector", limit=2)
+
+    assert debug["diagnostics"].get("reranked") is False
+    assert runtime._reranker() is None
 
 
 def test_runtime_xml_fact_query_returns_focused_detector_chunk(tmp_path: Path) -> None:

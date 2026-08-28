@@ -1,6 +1,6 @@
 # Retrieval
 
-The implemented MCP runtime uses sparse lexical retrieval over the local chunk store. The retrieval package also contains hybrid primitives for combining dense and sparse candidates.
+The MCP runtime runs sparse lexical retrieval over the local chunk store, and hybrid dense/sparse retrieval when `retrieval.dense_candidates` is greater than zero and a Qdrant collection is reachable. When the dense path is unavailable, search falls back to sparse and reports the reason in diagnostics.
 
 ```mermaid
 flowchart TD
@@ -20,6 +20,8 @@ Sparse retrieval tokenises source-like text, preserving dotted identifiers. It s
 ## Hybrid pipeline primitives
 
 `HybridRetriever` calls dense and sparse retrievers, fuses candidates with reciprocal rank fusion, optionally reranks, diversifies by source and returns diagnostics including citations. Configuration controls dense candidate count, sparse candidate count, final result count and maximum results per source.
+
+Set `retrieval.rerank: true` to rerank fused candidates with `models.reranker` before diversification. The runtime builds the reranker once per instance and loads its model lazily on the first search; a reranker failure falls back to the fused order and is surfaced as `reranker_error` in `search_debug`.
 
 ## Filters
 

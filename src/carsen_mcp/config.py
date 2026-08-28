@@ -75,7 +75,7 @@ class ModelsConfig(BaseModel):
         default_factory=lambda: ModelProviderConfig(model="Qwen/Qwen3-Embedding-0.6B", dimensions=1024)
     )
     reranker: ModelProviderConfig | None = Field(
-        default_factory=lambda: ModelProviderConfig(model="Qwen/Qwen3-Reranker-0.6B")
+        default_factory=lambda: ModelProviderConfig(model="BAAI/bge-reranker-v2-m3")
     )
 
 
@@ -88,6 +88,7 @@ class RetrievalConfig(BaseModel):
     final_results: int = Field(default=8, ge=1)
     fusion: str = "rrf"
     max_results_per_source: int = Field(default=3, ge=1)
+    rerank: bool = False
 
     @field_validator("fusion")
     @classmethod

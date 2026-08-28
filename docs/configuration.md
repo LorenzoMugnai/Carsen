@@ -29,7 +29,7 @@ models:
     max_seq_length: 1024
   reranker:
     provider: sentence_transformers
-    model: Qwen/Qwen3-Reranker-0.6B
+    model: BAAI/bge-reranker-v2-m3
 retrieval:
   dense_candidates: 40
   sparse_candidates: 40
@@ -37,6 +37,7 @@ retrieval:
   final_results: 8
   fusion: rrf
   max_results_per_source: 3
+  rerank: false
 indexing:
   incremental: true
   follow_symlinks: false
@@ -63,6 +64,7 @@ policy:
 - `storage.qdrant_url` points to a running Qdrant service. If Docker or a Qdrant server is unavailable, set `storage.qdrant_path` (for example `~/.local/share/carsen/<id>/qdrant`) to use embedded local Qdrant storage. When set, `qdrant_path` overrides `qdrant_url`.
 - Environment variables and `~` are expanded in YAML values. Relative paths are resolved against the YAML file location.
 - `retrieval.fusion` currently accepts only `rrf`.
+- `retrieval.rerank` is off by default. When enabled, fused candidates are reranked with `models.reranker` before diversification; the `sentence_transformers` reranker provider loads a cross-encoder model on the first search and expects a genuine cross-encoder checkpoint such as `BAAI/bge-reranker-v2-m3`. A reranker failure falls back to the fused order and is reported in `search_debug` diagnostics.
 - Set `retrieval.dense_candidates: 0` for sparse/exact-only operation. In this mode Carsen does not load the embedding model during search, which is useful on CPU-only or low-memory machines.
 - `models.embedding.batch_size` bounds local embedding calls during indexing and provider encoding. Lower it for memory-constrained machines. `models.embedding.max_seq_length` caps Sentence Transformers token length so oversized chunks are truncated before encoding.
 - Embeddings and Qdrant are optional for indexing and MCP retrieval. Plain `carsen index` builds local chunks for sparse/exact search. `carsen index --embed` warns if the optional dense phase fails, while `carsen reembed` remains dense-only and reports failures as errors.

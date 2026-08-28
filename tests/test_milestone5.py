@@ -4,7 +4,12 @@ from typing import Any
 
 import pytest
 
-from carsen_mcp.reranking import DeterministicReranker, SentenceTransformersCrossEncoderReranker
+from carsen_mcp.config import ModelProviderConfig
+from carsen_mcp.reranking import (
+    DeterministicReranker,
+    SentenceTransformersCrossEncoderReranker,
+    reranker_from_config,
+)
 from carsen_mcp.retrieval import HybridRetrievalConfig, HybridRetriever, SearchResult
 
 
@@ -40,6 +45,17 @@ def test_sentence_transformers_cross_encoder_is_lazy() -> None:
     reranker = SentenceTransformersCrossEncoderReranker()
     assert reranker.model_name == "Qwen/Qwen3-Reranker-0.6B"
     assert reranker._model is None
+
+
+def test_reranker_from_config_dispatch() -> None:
+    assert reranker_from_config(None) is None
+    assert isinstance(reranker_from_config(ModelProviderConfig(provider="deterministic", model="x")), DeterministicReranker)
+    st = reranker_from_config(ModelProviderConfig(provider="sentence_transformers", model="BAAI/bge-reranker-v2-m3", device="cpu"))
+    assert isinstance(st, SentenceTransformersCrossEncoderReranker)
+    assert st.model_name == "BAAI/bge-reranker-v2-m3"
+    assert st.device == "cpu"
+    with pytest.raises(ValueError):
+        reranker_from_config(ModelProviderConfig(provider="unknown", model="x"))
 
 
 def test_hybrid_reranker_integration_and_diagnostics() -> None:

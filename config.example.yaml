@@ -25,8 +25,10 @@ models:
     batch_size: 8
     max_seq_length: 1024
   reranker:
+    # Used only when retrieval.rerank is true. The sentence_transformers provider
+    # expects a genuine cross-encoder checkpoint (e.g. BAAI/bge-reranker-v2-m3).
     provider: sentence_transformers
-    model: Qwen/Qwen3-Reranker-0.6B
+    model: BAAI/bge-reranker-v2-m3
     device: auto
 
 retrieval:
@@ -38,6 +40,9 @@ retrieval:
   final_results: 8
   fusion: rrf
   max_results_per_source: 3
+  # Rerank fused candidates with models.reranker before returning results.
+  # Off by default: it loads a cross-encoder model on first search.
+  rerank: false
 
 indexing:
   incremental: true

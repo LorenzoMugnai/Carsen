@@ -4,9 +4,12 @@ from __future__ import annotations
 
 import importlib
 from dataclasses import replace
-from typing import Protocol
+from typing import TYPE_CHECKING, Protocol
 
 from carsen_mcp.retrieval.models import SearchResult
+
+if TYPE_CHECKING:
+    from carsen_mcp.config import ModelProviderConfig
 
 
 class Reranker(Protocol):
@@ -54,6 +57,8 @@ class SentenceTransformersCrossEncoderReranker:
         return self._model
 
     def rerank(self, query: str, candidates: list[SearchResult], limit: int) -> list[SearchResult]:
+        if not candidates:
+            return []
         model = self._load_model()
         scores = model.predict([(query, candidate.text) for candidate in candidates])
         reranked = []
@@ -64,3 +69,24 @@ class SentenceTransformersCrossEncoderReranker:
             reranked.append(replace(candidate, score=float(score), metadata=metadata))
         reranked.sort(key=lambda result: result.score, reverse=True)
         return reranked[:limit]
+
+
+def reranker_from_config(config: ModelProviderConfig | None) -> Reranker | None:
+    """Build a reranker from model configuration without eager model loading.
+
+    Returns ``None`` when no reranker is configured. The ``sentence_transformers``
+    provider expects a genuine cross-encoder checkpoint (for example
+    ``BAAI/bge-reranker-v2-m3``); sequence-classification rerankers that are not
+    loadable through ``sentence_transformers.CrossEncoder`` need a dedicated
+    provider.
+    """
+
+    if config is None:
+        return None
+    provider = config.provider.lower().replace("-", "_")
+    if provider in {"deterministic", "fake", "test", "lexical"}:
+        return DeterministicReranker()
+    if provider in {"sentence_transformers", "sentence_transformer", "cross_encoder"}:
+        device = None if config.device == "auto" else config.device
+        return SentenceTransformersCrossEncoderReranker(config.model, device=device)
+    raise ValueError(f"unsupported reranker provider: {config.provider}")
